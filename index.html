@@ -3,82 +3,142 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hearing Health Classification (Ruffle Interactive)</title>
+  <title>Hearing Health Classification</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* Enforce Verdana typography across the entire application */
+    /* Enforce Verdana typography across all elements */
     *, *::before, *::after {
       font-family: Verdana, Geneva, Tahoma, sans-serif;
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
     }
 
+    /* Zero outer margins, zero padding, pure white edge-to-edge canvas for Moodle iframes */
     html, body {
       margin: 0;
       padding: 0;
-      background-color: #EAEEF3;
+      width: 100%;
+      background: #FFFFFF;
       color: #19587f;
-      min-height: 100vh;
+      font-family: Verdana, Geneva, Tahoma, sans-serif;
+      overflow-x: hidden;
     }
 
-    /* Ruffle Player Window Frame */
-    .ruffle-window {
+    /* Full-width container with NO outer border, margin, border-radius, or box-shadow */
+    .stage-root {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      max-width: none;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      background: #FFFFFF;
+    }
+
+    /* Word Bank container styling */
+    .word-bank-box {
+      background-color: #FAFCFE;
+      border: 1.5px dashed #B9CEDB;
+      border-radius: 8px;
+      transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .word-bank-box.is-drag-over {
+      background-color: #F0F7FC;
+      border-color: #19587f;
+      border-style: solid;
+      box-shadow: inset 0 0 0 2px rgba(25, 88, 127, 0.2);
+    }
+
+    /* Two-column classification table structural borders */
+    .classification-table {
+      border-top: 1.5px solid #E2DDD5;
+      border-bottom: 1.5px solid #E2DDD5;
       background-color: #FFFFFF;
-      border: 1.5px solid #D8E0E8;
-      border-radius: 14px;
-      box-shadow:
-        0 16px 38px -10px rgba(25, 88, 127, 0.12),
-        0 4px 12px -2px rgba(15, 23, 42, 0.05);
-      overflow: hidden;
     }
 
-    /* Flash Vector Word Pill Styling */
-    .word-pill {
-      background: linear-gradient(180deg, #FFFFFF 0%, #F7FAFC 100%);
-      border: 1.5px solid #19587f;
-      border-radius: 9999px;
-      color: #19587f;
+    .table-col-divider {
+      border-bottom: 1.5px solid #E2DDD5;
+    }
+
+    @media (min-width: 768px) {
+      .table-col-divider {
+        border-bottom: none;
+        border-right: 1.5px solid #E2DDD5;
+      }
+    }
+
+    .table-col-header {
+      background-color: #FFF4EB;
+      color: #ff791f;
       font-weight: 700;
-      box-shadow:
-        0 2px 5px rgba(25, 88, 127, 0.14),
-        inset 0 1px 0 #FFFFFF;
+      border-bottom: 1.5px solid #E2DDD5;
+    }
+
+    /* Drop zone interactive feedback */
+    .drop-zone {
+      background-color: #FFFFFF;
+      transition: background-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .drop-zone.is-drag-over {
+      background-color: #FFF9F4;
+      box-shadow: inset 0 0 0 2px rgba(255, 121, 31, 0.5);
+    }
+
+    .drop-zone.is-tap-target {
+      background-color: #FFFBF7;
+    }
+
+    /* Draggable Word Pill Styling (exact Verdana Flash tactile card specifications) */
+    .word-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-family: Verdana, Geneva, Tahoma, sans-serif;
+      font-weight: 700;
+      font-size: 13.5px;
+      line-height: 1.25;
+      color: #19587f;
+      background: #FFFFFF;
+      border: 2px solid #19587f;
+      box-shadow: 0 2px 0 #19587f;
+      border-radius: 6px;
+      padding: 8px 14px;
       cursor: grab;
       user-select: none;
       touch-action: none;
       transition:
-        transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
-        box-shadow 0.18s ease,
-        border-color 0.18s ease,
-        background 0.18s ease;
+        transform 0.15s cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 0.15s ease,
+        border-color 0.15s ease,
+        background-color 0.15s ease,
+        color 0.15s ease;
     }
 
     .word-pill:hover {
-      border-color: #124260;
-      box-shadow:
-        0 4px 10px rgba(25, 88, 127, 0.2),
-        inset 0 1px 0 #FFFFFF;
+      background-color: #F5FAFD;
       transform: translateY(-1px);
+      box-shadow: 0 3px 0 #19587f;
     }
 
     .word-pill:active {
       cursor: grabbing;
     }
 
-    /* Tap-to-select active state */
+    /* Tap-to-select active highlight ring in #ff791f */
     .word-pill.is-selected {
       border-color: #ff791f;
-      background: linear-gradient(180deg, #FFFDFB 0%, #FFF4EA 100%);
-      box-shadow:
-        0 0 0 3px rgba(255, 121, 31, 0.22),
-        0 4px 12px rgba(255, 121, 31, 0.16);
+      background-color: #FFF6EE;
+      box-shadow: 0 2px 0 #ff791f, 0 0 0 3px rgba(255, 121, 31, 0.28);
       transform: translateY(-1px);
     }
 
-    /* Source placeholder while dragging */
+    /* Source placeholder while pointer-dragging */
     .word-pill.is-dragging-source {
-      opacity: 0.28;
+      opacity: 0.24;
       border-style: dashed;
-      border-color: rgba(25, 88, 127, 0.45);
       box-shadow: none;
     }
 
@@ -89,172 +149,146 @@
       left: 0;
       z-index: 9999;
       pointer-events: none;
-      background: linear-gradient(180deg, #FFFFFF 0%, #F1F6FA 100%);
-      border: 1.5px solid #19587f;
-      border-radius: 9999px;
-      color: #19587f;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-family: Verdana, Geneva, Tahoma, sans-serif;
       font-weight: 700;
-      box-shadow:
-        0 14px 28px rgba(25, 88, 127, 0.24),
-        0 4px 10px rgba(0, 0, 0, 0.08),
-        inset 0 1px 0 #FFFFFF;
+      font-size: 13.5px;
+      line-height: 1.25;
+      color: #19587f;
+      background: #FFFFFF;
+      border: 2px solid #ff791f;
+      border-radius: 6px;
+      padding: 8px 14px;
+      box-shadow: 0 8px 18px rgba(25, 88, 127, 0.24), 0 2px 0 #ff791f;
       will-change: transform;
     }
 
-    /* Spring snap-in animation on drop */
+    /* Spring snap-in animation when placed */
     @keyframes springSnap {
-      0% {
-        transform: scale(0.86);
-      }
-      55% {
-        transform: scale(1.05);
-      }
-      80% {
-        transform: scale(0.985);
-      }
-      100% {
-        transform: scale(1);
-      }
+      0%   { transform: scale(0.88); }
+      55%  { transform: scale(1.04); }
+      80%  { transform: scale(0.985); }
+      100% { transform: scale(1); }
     }
 
     .snap-in {
-      animation: springSnap 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      animation: springSnap 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
 
-    /* Error horizontal shake animation */
+    /* Horizontal shake animation for incorrect placement */
     @keyframes pillShake {
       0%, 100% { transform: translateX(0); }
-      20% { transform: translateX(-5px); }
-      40% { transform: translateX(5px); }
-      60% { transform: translateX(-3px); }
-      80% { transform: translateX(3px); }
+      20%      { transform: translateX(-5px); }
+      40%      { transform: translateX(5px); }
+      60%      { transform: translateX(-3px); }
+      80%      { transform: translateX(3px); }
     }
 
     .shake-error {
       animation: pillShake 0.36s ease-in-out;
     }
 
-    /* Validation states on pills */
+    /* Checked validation states */
     .word-pill.is-correct {
-      border-color: #16A34A;
-      background: linear-gradient(180deg, #F6FEF9 0%, #E8F9EF 100%);
-      box-shadow:
-        0 2px 6px rgba(22, 163, 74, 0.14),
-        inset 0 1px 0 #FFFFFF;
+      border-color: #238653;
+      background-color: #EBF8F1;
+      color: #1B6B42;
+      box-shadow: 0 2px 0 #238653;
     }
 
     .word-pill.is-incorrect {
-      border-color: #E11D48;
-      background: linear-gradient(180deg, #FFF8F9 0%, #FDECEF 100%);
-      box-shadow:
-        0 2px 6px rgba(225, 29, 72, 0.14),
-        inset 0 1px 0 #FFFFFF;
+      border-color: #C93B2B;
+      background-color: #FDF0EE;
+      color: #A82A1C;
+      box-shadow: 0 2px 0 #C93B2B;
     }
 
-    /* Drop Zone Hover Glow */
-    .drop-zone {
-      transition:
-        background-color 0.2s ease,
-        box-shadow 0.2s ease;
-    }
-
-    .drop-zone.is-drag-over {
-      background-color: rgba(255, 121, 31, 0.045);
-      box-shadow:
-        inset 0 0 0 2px rgba(255, 121, 31, 0.38),
-        inset 0 0 22px rgba(25, 88, 127, 0.06);
-    }
-
-    .word-bank-zone.is-drag-over {
-      background-color: rgba(25, 88, 127, 0.035);
-      box-shadow: inset 0 0 0 1.5px rgba(25, 88, 127, 0.28);
-    }
-
-    /* Classic Flash Gradient Action Buttons */
-    .flash-btn-primary {
-      background: linear-gradient(180deg, #2471A0 0%, #19587f 100%);
-      border: 1.5px solid #134463;
-      color: #FFFFFF;
+    /* Validation badge inside pill */
+    .pill-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 9999px;
+      font-size: 11px;
       font-weight: 700;
-      border-radius: 9px;
-      box-shadow:
-        0 2px 6px rgba(25, 88, 127, 0.24),
-        inset 0 1px 0 rgba(255, 255, 255, 0.28);
-      transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease;
+      line-height: 1;
+      flex-shrink: 0;
     }
 
-    .flash-btn-primary:hover {
-      filter: brightness(1.06);
-      transform: translateY(-1px);
-      box-shadow:
-        0 4px 10px rgba(25, 88, 127, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.35);
-    }
-
-    .flash-btn-primary:active {
-      transform: translateY(0);
-      filter: brightness(0.97);
-    }
-
-    .flash-btn-accent {
-      background: linear-gradient(180deg, #FF9142 0%, #ff791f 100%);
-      border: 1.5px solid #D95F0E;
+    .pill-badge.badge-correct {
+      background-color: #238653;
       color: #FFFFFF;
+    }
+
+    .pill-badge.badge-incorrect {
+      background-color: #C93B2B;
+      color: #FFFFFF;
+    }
+
+    /* Tactile Flash-style Action Buttons */
+    .flash-btn {
+      font-family: Verdana, Geneva, Tahoma, sans-serif;
       font-weight: 700;
-      border-radius: 9px;
-      box-shadow:
-        0 2px 6px rgba(255, 121, 31, 0.25),
-        inset 0 1px 0 rgba(255, 255, 255, 0.32);
-      transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease;
+      font-size: 13px;
+      border-radius: 6px;
+      padding: 8px 16px;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease;
     }
 
-    .flash-btn-accent:hover {
-      filter: brightness(1.05);
+    .btn-check {
+      background-color: #19587f;
+      border: 2px solid #19587f;
+      color: #FFFFFF;
+      box-shadow: 0 2px 0 #0f3852;
+    }
+
+    .btn-check:hover {
+      background-color: #1f6996;
       transform: translateY(-1px);
-      box-shadow:
-        0 4px 10px rgba(255, 121, 31, 0.32),
-        inset 0 1px 0 rgba(255, 255, 255, 0.38);
+      box-shadow: 0 3px 0 #0f3852;
     }
 
-    .flash-btn-accent:active {
-      transform: translateY(0);
-      filter: brightness(0.97);
+    .btn-check:active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 0 #0f3852;
     }
 
-    .flash-btn-secondary {
-      background: linear-gradient(180deg, #FFFFFF 0%, #F1F5F9 100%);
-      border: 1.5px solid rgba(25, 88, 127, 0.32);
+    .btn-secondary {
+      background-color: #FFFFFF;
+      border: 2px solid #19587f;
       color: #19587f;
-      font-weight: 700;
-      border-radius: 9px;
-      box-shadow:
-        0 2px 5px rgba(25, 88, 127, 0.08),
-        inset 0 1px 0 #FFFFFF;
-      transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+      box-shadow: 0 2px 0 #19587f;
     }
 
-    .flash-btn-secondary:hover {
-      border-color: #19587f;
-      background: linear-gradient(180deg, #FFFFFF 0%, #E9F0F6 100%);
+    .btn-secondary:hover {
+      background-color: #F2F8FC;
       transform: translateY(-1px);
+      box-shadow: 0 3px 0 #19587f;
     }
 
-    .flash-btn-secondary:active {
-      transform: translateY(0);
+    .btn-secondary:active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 0 #19587f;
     }
 
-    /* Continuous Subtle Flash Vector Animations on the Ear Diagram */
+    /* Subtle Continuous Anatomical Vector Animations */
     @keyframes soundWaveFlow1 {
       0%   { opacity: 0; transform: translateX(-14px) scale(0.94); }
-      25%  { opacity: 0.55; }
-      75%  { opacity: 0.35; }
+      25%  { opacity: 0.62; }
+      75%  { opacity: 0.36; }
       100% { opacity: 0; transform: translateX(22px) scale(1.04); }
     }
 
     @keyframes soundWaveFlow2 {
       0%   { opacity: 0; transform: translateX(-12px) scale(0.92); }
-      30%  { opacity: 0.48; }
-      80%  { opacity: 0.25; }
+      30%  { opacity: 0.54; }
+      80%  { opacity: 0.28; }
       100% { opacity: 0; transform: translateX(20px) scale(1.03); }
     }
 
@@ -273,20 +307,20 @@
     }
 
     @keyframes cochleaShimmerPulse {
-      0%, 100% { opacity: 0.18; transform: scale(0.99); }
-      50%      { opacity: 0.62; transform: scale(1.015); }
+      0%, 100% { opacity: 0.28; transform: scale(0.99); }
+      50%      { opacity: 0.72; transform: scale(1.02); }
     }
 
     @keyframes cochleaHarmonicHalo {
-      0%, 100% { opacity: 0.65; transform: scale(0.97); }
-      50%      { opacity: 1; transform: scale(1.05); }
+      0%, 100% { opacity: 0.72; transform: scale(0.97); }
+      50%      { opacity: 1; transform: scale(1.06); }
     }
 
     @keyframes sparklePop {
       0%   { opacity: 0; transform: scale(0.2) rotate(0deg); }
-      35%  { opacity: 1; transform: scale(1.15) rotate(35deg); }
-      70%  { opacity: 0.85; transform: scale(0.95) rotate(65deg); }
-      100% { opacity: 0; transform: scale(0.3) rotate(90deg); }
+      35%  { opacity: 1; transform: scale(1.18) rotate(35deg); }
+      70%  { opacity: 0.88; transform: scale(0.96) rotate(65deg); }
+      100% { opacity: 0; transform: scale(0.25) rotate(90deg); }
     }
 
     .anim-wave-1 {
@@ -321,11 +355,11 @@
 
     .cochlea-victory-active .victory-halo {
       opacity: 1;
-      animation: cochleaHarmonicHalo 2.2s ease-in-out infinite;
+      animation: cochleaHarmonicHalo 2s ease-in-out infinite;
     }
 
     .cochlea-victory-active .cochlea-core {
-      filter: drop-shadow(0 0 10px rgba(248, 206, 120, 0.95)) drop-shadow(0 0 18px rgba(255, 121, 31, 0.55));
+      filter: drop-shadow(0 0 10px rgba(248, 206, 120, 0.95)) drop-shadow(0 0 18px rgba(255, 121, 31, 0.6));
     }
 
     .sparkle-burst .sparkle-star {
@@ -333,25 +367,25 @@
     }
   </style>
 </head>
-<body class="flex items-center justify-center p-2.5 sm:p-5">
+<body>
 
-  <!-- Unified Pure-White Interactive Stage Window -->
-  <main class="ruffle-window w-full max-w-4xl mx-auto flex flex-col">
+  <!-- Edge-to-Edge Pure White Container (No outer margins, borders, radius, or shadows) -->
+  <main class="stage-root w-full flex flex-col">
 
-    <!-- Unified Pure-White (#FFFFFF) Flash Vector Stage -->
-    <div id="flashStage" class="bg-[#FFFFFF] flex flex-col w-full">
+    <!-- TOP SECTION: Anatomical Ear Vector Illustration (centered, full width) -->
+    <section class="w-full bg-[#FFFFFF] px-3 sm:px-5 pt-2 pb-2 flex items-center justify-center">
 
-      <!-- 1. Top Anatomical Vector Illustration (Clean Graphic Only - No Labels or Leader Lines) -->
-      <section class="w-full bg-[#FFFFFF] pt-3 pb-2 px-4 sm:px-8 select-none">
+      <!-- Smooth-Shaded Anatomical Cross-Section of the Human Ear (No Labels) -->
+      <div class="w-full flex items-center justify-center select-none">
         <svg
           id="earAnatomySvg"
           viewBox="102 36 708 246"
-          class="w-full h-auto max-h-[245px] sm:max-h-[265px] block mx-auto overflow-visible"
+          class="w-full h-auto max-h-[230px] sm:max-h-[250px] block mx-auto overflow-visible"
           role="img"
           aria-label="Anatomical cross-section of the human ear"
         >
           <defs>
-            <!-- Soft Feathered Cutout Mask with Gaussian Blur so edges melt cleanly into #FFFFFF -->
+            <!-- Soft Feathered Cutout Mask blending seamlessly into #FFFFFF -->
             <filter id="featherMaskBlur" x="-15%" y="-15%" width="130%" height="130%">
               <feGaussianBlur stdDeviation="7" />
             </filter>
@@ -366,15 +400,6 @@
             <mask id="anatomicalFeatherMask">
               <ellipse cx="458" cy="158" rx="350" ry="122" fill="url(#cutoutFeatherGrad)" filter="url(#featherMaskBlur)" />
             </mask>
-
-            <!-- Soft Gaussian Blur Filter for organic shadows & harmonic glows -->
-            <filter id="softGlowFilter" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="5" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
 
             <filter id="harmonicAuraBlur" x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="11" />
@@ -453,14 +478,14 @@
               <stop offset="100%" stop-color="#2E1F1C" />
             </radialGradient>
 
-            <!-- Deep Indigo Contour (#3B498B) -->
+            <!-- Deep Indigo Inferior Contour (#3B498B) -->
             <linearGradient id="indigoContourGrad" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stop-color="#4B5CA6" />
               <stop offset="50%" stop-color="#3B498B" />
               <stop offset="100%" stop-color="#273266" />
             </linearGradient>
 
-            <!-- Coral-Red Eustachian Tube / Tensor Tympani (#D95B59) -->
+            <!-- Coral-Red Eustachian Tube Structure (#D95B59) -->
             <linearGradient id="coralEustachianGrad" x1="15%" y1="0%" x2="85%" y2="100%">
               <stop offset="0%" stop-color="#EC817F" />
               <stop offset="48%" stop-color="#D95B59" />
@@ -504,19 +529,24 @@
               <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
             </linearGradient>
 
-            <!-- Golden Harmonic Victory Glow -->
+            <!-- Golden Harmonic Glow & Victory Radial -->
+            <radialGradient id="cochleaSubtleRadial" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#FFE8A3" stop-opacity="0.7" />
+              <stop offset="55%" stop-color="#F8CE78" stop-opacity="0.3" />
+              <stop offset="100%" stop-color="#F8CE78" stop-opacity="0" />
+            </radialGradient>
+
             <radialGradient id="cochleaVictoryRadial" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stop-color="#FFE699" stop-opacity="0.95" />
-              <stop offset="45%" stop-color="#F8CE78" stop-opacity="0.65" />
-              <stop offset="75%" stop-color="#ff791f" stop-opacity="0.28" />
+              <stop offset="0%" stop-color="#FFE699" stop-opacity="0.98" />
+              <stop offset="45%" stop-color="#F8CE78" stop-opacity="0.68" />
+              <stop offset="75%" stop-color="#ff791f" stop-opacity="0.32" />
               <stop offset="100%" stop-color="#ff791f" stop-opacity="0" />
             </radialGradient>
           </defs>
 
-          <!-- Main Feathered Anatomical Cutaway Group -->
+          <!-- Feathered Anatomical Cutaway Illustration -->
           <g mask="url(#anatomicalFeatherMask)">
-
-            <!-- Soft Subcutaneous Tissue Cushion behind Canal & Temporal Bone -->
+            <!-- Soft Subcutaneous Tissue Cushion -->
             <path d="M185,48 C235,44 295,46 355,52 L355,264 C295,268 235,266 185,256 Z" fill="url(#surroundingSkinGrad)" />
 
             <!-- Pale Yellow Temporal Bone Cutaway Block (#EFE47A) -->
@@ -543,593 +573,977 @@
               stroke-linecap="round"
             />
 
-            <!-- Organic Burgundy-Magenta Marrow Pockets (#A7345B) in Temporal Bone -->
+            <!-- Organic Burgundy-Magenta Marrow Pockets (#A7345B) -->
             <g fill="url(#marrowPocketGrad)" opacity="0.92">
-              <!-- Superior Squamous/Petrous Pockets -->
               <path d="M312,68 C322,61 339,63 343,72 C346,80 335,88 322,86 C311,84 305,75 312,68 Z" />
               <path d="M358,62 C372,56 392,59 396,69 C399,78 386,86 371,84 C357,82 349,68 358,62 Z" />
               <path d="M412,60 C425,55 442,60 444,69 C446,78 432,83 419,80 C409,77 404,65 412,60 Z" />
               <path d="M460,64 C472,58 488,62 490,71 C492,79 478,84 466,81 C456,78 452,69 460,64 Z" />
-              <path d="M506,66 C521,60 541,65 544,75 C546,84 531,91 516,88 C503,85 496,72 506,66 Z" />
-              <path d="M562,72 C576,66 594,71 597,81 C599,90 584,96 570,92 C558,88 552,77 562,72 Z" />
-              <path d="M614,82 C628,77 645,83 647,93 C649,102 634,107 621,102 C610,98 604,87 614,82 Z" />
-              <path d="M332,96 C344,91 358,95 360,104 C362,112 349,117 338,113 C328,109 324,100 332,96 Z" />
-              <path d="M378,94 C390,90 403,94 404,102 C405,109 393,113 383,109 C374,106 370,98 378,94 Z" />
-
-              <!-- Inferior Petrous/Mastoid Pockets -->
-              <path d="M306,214 C319,207 336,211 339,221 C342,230 328,238 315,235 C303,232 297,220 306,214 Z" />
-              <path d="M352,216 C365,210 381,215 383,225 C385,234 371,241 359,237 C348,233 343,221 352,216 Z" />
-              <path d="M326,245 C339,240 355,244 357,252 C359,260 345,264 333,261 C322,258 317,249 326,245 Z" />
-              <path d="M492,218 C506,212 524,217 526,227 C528,236 513,243 499,239 C487,235 482,223 492,218 Z" />
-              <path d="M542,222 C558,216 578,221 581,231 C583,240 567,248 551,244 C537,240 531,227 542,222 Z" />
-              <path d="M598,216 C613,210 631,215 634,225 C636,234 620,241 606,237 C594,233 588,221 598,216 Z" />
-              <path d="M652,204 C665,198 681,203 683,212 C685,221 671,227 658,223 C647,219 642,209 652,204 Z" />
+              <path d="M506,66 C521,60 541,64 544,74 C547,83 533,90 518,87 C504,84 497,72 506,66 Z" />
+              <path d="M562,68 C576,63 594,68 596,77 C598,86 583,91 570,88 C558,85 553,73 562,68 Z" />
+              <path d="M614,74 C629,69 648,75 649,85 C650,94 634,99 621,95 C609,91 604,79 614,74 Z" />
+              <path d="M666,86 C681,82 698,89 698,99 C698,108 682,112 669,107 C658,103 656,90 666,86 Z" />
+              <path d="M294,102 C305,96 322,99 325,109 C328,118 315,125 303,122 C292,119 286,108 294,102 Z" />
+              <path d="M338,98 C351,93 367,97 369,106 C371,115 357,121 345,118 C334,115 329,103 338,98 Z" />
+              <path d="M712,108 C725,105 740,113 738,123 C736,132 721,135 710,129 C701,124 702,111 712,108 Z" />
+              <path d="M688,184 C701,180 717,187 716,197 C715,207 699,211 687,206 C677,201 678,188 688,184 Z" />
+              <path d="M636,214 C651,209 669,214 670,224 C671,234 654,240 640,236 C627,232 624,219 636,214 Z" />
+              <path d="M582,226 C597,221 615,226 616,236 C617,246 600,252 586,248 C573,244 570,231 582,226 Z" />
+              <path d="M526,232 C541,227 559,232 560,242 C561,252 544,258 530,254 C517,250 514,237 526,232 Z" />
+              <path d="M306,204 C319,199 336,203 338,213 C340,222 326,229 313,226 C301,223 296,210 306,204 Z" />
+              <path d="M352,216 C366,211 384,216 385,226 C386,236 370,242 357,238 C345,234 341,221 352,216 Z" />
             </g>
 
-            <!-- Deep Indigo Contour (#3B498B) Framing Inner-Ear Capsule & Medial Tympanic Border -->
+            <!-- Deep Indigo Inferior Contour (#3B498B) -->
             <path
-              d="M428,95
-                 C446,74 486,68 518,86
-                 C544,98 575,98 608,108
-                 C642,118 666,142 664,172
-                 C662,202 634,222 595,220
-                 C558,218 528,202 496,204
-                 C468,206 446,196 432,182 Z"
+              d="M366,192
+                 C392,202 424,216 458,236
+                 C482,250 502,262 518,272
+                 L482,275
+                 C458,260 426,240 388,220
+                 C368,210 356,200 366,192 Z"
               fill="url(#indigoContourGrad)"
-              opacity="0.92"
             />
 
-            <!-- Dark Middle-Ear Cavity (#4A3531) -->
+            <!-- Coral-Red Eustachian Tube Structure (#D95B59) -->
             <path
-              d="M362,138
-                 C366,112 384,98 408,100
-                 C430,102 446,118 448,142
-                 C450,166 446,188 432,198
-                 C418,206 394,204 378,194
-                 C365,186 360,164 362,138 Z"
-              fill="url(#middleEarCavityGrad)"
-            />
-
-            <!-- Coral-Red Eustachian Tube / Muscle Structure (#D95B59) -->
-            <path
-              d="M386,192
-                 C398,194 414,196 426,204
-                 C444,218 462,244 476,268
-                 L452,276
-                 C436,252 418,226 396,210
-                 C388,204 382,198 386,192 Z"
+              d="M396,178
+                 C422,188 455,208 492,235
+                 C514,251 532,264 548,275
+                 L514,275
+                 C492,259 462,238 428,216
+                 C404,200 386,188 386,180 Z"
               fill="url(#coralEustachianGrad)"
             />
-            <!-- Subtle Lumen Highlight on Eustachian Structure -->
             <path
-              d="M398,198 C418,212 438,236 458,266"
+              d="M402,182 C432,196 468,220 512,252"
               fill="none"
-              stroke="#F4A19F"
-              stroke-width="2.2"
+              stroke="#F39B99"
+              stroke-width="3"
               stroke-linecap="round"
-              stroke-opacity="0.55"
+              stroke-opacity="0.65"
+            />
+
+            <!-- Dark Middle-Ear Tympanic Cavity (#4A3531) -->
+            <path
+              d="M366,134
+                 C374,106 398,94 424,102
+                 C446,109 462,126 462,148
+                 C462,170 446,188 422,190
+                 C398,192 374,186 366,172 Z"
+              fill="url(#middleEarCavityGrad)"
+            />
+            <path
+              d="M376,136 C384,114 402,106 422,112 C438,117 448,132 448,148 C448,164 436,178 418,180"
+              fill="none"
+              stroke="#241715"
+              stroke-width="6"
+              stroke-opacity="0.45"
+              stroke-linecap="round"
             />
 
             <!-- External Auditory Canal (#C97859 to #7A3B2E) -->
             <path
-              d="M196,151
-                 C235,149 275,144 315,144
-                 C338,144 356,146 371,148
-                 L364,185
-                 C346,182 325,179 302,180
-                 C265,181 232,186 198,185 Z"
+              d="M212,142
+                 C256,144 312,142 368,136
+                 L368,186
+                 C312,182 256,184 212,186 Z"
               fill="url(#earCanalLengthGrad)"
             />
-            <!-- Cylindrical Depth Shading Inside Canal -->
             <path
-              d="M196,151
-                 C235,149 275,144 315,144
-                 C338,144 356,146 371,148
-                 L364,185
-                 C346,182 325,179 302,180
-                 C265,181 232,186 198,185 Z"
+              d="M212,142 C256,144 312,142 368,136 L368,186 C312,182 256,184 212,186 Z"
               fill="url(#earCanalWallShade)"
             />
+            <path
+              d="M225,163 C268,163 316,161 360,160"
+              fill="none"
+              stroke="#E59A7C"
+              stroke-width="5"
+              stroke-opacity="0.3"
+              stroke-linecap="round"
+            />
 
-            <!-- Pearly Silver-Blue Eardrum (Tympanic Membrane) with Micro-Vibration -->
+            <!-- Subtle Animated Acoustic Sound Waves Entering the Canal -->
+            <g fill="none" stroke="#FFF4E6" stroke-linecap="round">
+              <path class="anim-wave-1" d="M188,151 C195,159 195,173 188,181" stroke-width="2.4" />
+              <path class="anim-wave-2" d="M248,150 C254,158 254,170 248,178" stroke-width="2.2" />
+              <path class="anim-wave-3" d="M308,148 C314,156 314,168 308,176" stroke-width="2" />
+            </g>
+
+            <!-- Outer Ear Auricle / Pinna (#F7D5C2 to #C97B5B) -->
+            <g>
+              <path
+                d="M174,64
+                   C142,66 122,94 124,132
+                   C126,164 136,186 144,210
+                   C148,226 150,248 168,252
+                   C186,256 202,240 206,216
+                   C208,200 206,188 216,184
+                   C224,180 226,162 222,144
+                   C218,124 224,96 208,78
+                   C198,66 186,63 174,64 Z"
+                fill="url(#auricleMainGrad)"
+              />
+              <path
+                d="M172,68
+                   C144,70 128,96 130,130
+                   C132,158 140,178 147,198
+                   C151,182 145,158 143,132
+                   C141,104 154,82 176,80
+                   C194,78 206,92 208,112
+                   C214,94 202,66 172,68 Z"
+                fill="url(#auricleHelixHighlight)"
+              />
+              <path
+                d="M176,92
+                   C156,94 148,114 152,138
+                   C155,158 164,174 168,192
+                   C176,188 182,174 180,158
+                   C176,142 172,124 184,114
+                   C192,107 190,91 176,92 Z"
+                fill="#E39D7F"
+                opacity="0.88"
+              />
+              <path
+                d="M184,126
+                   C172,132 170,152 178,168
+                   C186,182 202,186 216,182
+                   L216,142
+                   C204,132 194,122 184,126 Z"
+                fill="url(#conchaBowlGrad)"
+              />
+              <path
+                d="M178,154
+                   C186,154 192,162 190,172
+                   C188,180 180,184 174,180 Z"
+                fill="#F5CBB5"
+              />
+              <path
+                d="M148,208
+                   C150,228 154,248 170,251
+                   C186,254 200,238 203,216
+                   C194,224 178,226 164,218 Z"
+                fill="url(#earlobeGrad)"
+              />
+            </g>
+
+            <!-- Pearly Silver-Blue Eardrum & Articulated Ossicles -->
             <g class="anim-eardrum">
               <ellipse
                 cx="368"
-                cy="166"
-                rx="7.5"
-                ry="19.5"
-                transform="rotate(14 368 166)"
+                cy="161"
+                rx="6.5"
+                ry="25"
+                transform="rotate(-11 368 161)"
                 fill="url(#eardrumPearlGrad)"
+                stroke="#8A9EB5"
+                stroke-width="1.2"
               />
-              <!-- Delicate Specular Cone of Light on Eardrum -->
               <ellipse
-                cx="366"
-                cy="169"
+                cx="366.5"
+                cy="159"
                 rx="2.6"
-                ry="8.5"
-                transform="rotate(14 366 169)"
+                ry="14"
+                transform="rotate(-11 366.5 159)"
                 fill="#FFFFFF"
                 opacity="0.72"
               />
             </g>
 
-            <!-- Articulated Auditory Ossicles (Malleus, Incus, Stapes) in Pearly Silver-Blue -->
-            <g class="anim-ossicles">
-              <!-- Malleus (Handle attached to eardrum + Head in epitympanic recess) -->
+            <g class="anim-ossicles" stroke="#7A8FA6" stroke-width="1" stroke-linejoin="round">
+              <!-- Malleus -->
               <path
-                d="M368,167
-                   C371,156 375,144 378,133
-                   C376,126 379,117 386,116
-                   C392,115 396,121 394,128
-                   C392,133 386,136 383,142
-                   C379,151 375,161 371,169 Z"
+                d="M369,161
+                   C371,149 375,136 378,124
+                   C380,118 387,117 390,122
+                   C392,126 388,132 384,135
+                   C380,145 376,155 372,163 Z"
                 fill="url(#ossicleSilverGrad)"
               />
-              <!-- Incus (Body + Short Crus + Long Crus descending to Stapes) -->
+              <!-- Incus -->
               <path
-                d="M392,119
-                   C399,116 409,119 415,123
-                   C418,125 416,129 411,129
-                   C406,129 405,134 407,142
-                   C409,149 411,154 414,156
-                   C412,159 408,159 406,155
-                   C402,148 399,139 396,131
-                   C392,128 389,123 392,119 Z"
+                d="M386,123
+                   C393,118 403,119 406,126
+                   C408,131 404,137 402,146
+                   C401,151 405,153 409,153
+                   L407,157
+                   C400,157 396,152 396,144
+                   C396,137 392,133 386,131 Z"
                 fill="url(#ossicleSilverGrad)"
               />
-              <!-- Stapes (Stirrup crura & oval footplate meeting the Vestibule) -->
+              <!-- Stapes -->
               <path
-                d="M412,155
-                   C419,150 427,147 435,146
-                   L437,160
-                   C428,160 420,159 412,157 Z
-                   M419,154
-                   C424,152 429,151 433,151
-                   L433,156
-                   C429,156 424,156 419,154 Z"
+                d="M408,153 L418,148 L428,146 L428,159 L418,157 L408,155 Z
+                   M416,151 L424,149 L424,156 L416,154 Z"
                 fill="url(#ossicleSilverGrad)"
+                fill-rule="evenodd"
               />
+              <ellipse cx="429" cy="152.5" rx="2.5" ry="7.5" fill="#DCE5F0" stroke="#7A8FA6" stroke-width="1" />
             </g>
 
-            <!-- Inner Ear: Vestibulocochlear Nerve Exiting Right -->
-            <path
-              d="M602,136 C652,134 702,136 756,142 L756,182 C702,186 652,186 602,182 Z"
-              fill="url(#vestibularNerveGrad)"
-            />
-            <!-- Delicate Cochlear & Vestibular Nerve Fiber Striations -->
-            <g fill="none" stroke="#C68328" stroke-width="1.25" stroke-linecap="round" stroke-opacity="0.45">
-              <path d="M614,146 C658,145 702,147 746,151" />
-              <path d="M618,156 C660,156 704,157 748,160" />
-              <path d="M616,166 C658,167 702,168 746,170" />
-              <path d="M610,175 C654,177 698,178 742,179" />
-            </g>
+            <!-- Inner Ear: Golden-Amber Semicircular Canals & Spiral Cochlea -->
+            <g id="innerEarGroup">
+              <!-- Continuous Subtle Harmonic Glow on Cochlea -->
+              <circle
+                class="anim-cochlea-shimmer"
+                cx="536"
+                cy="168"
+                r="56"
+                fill="url(#cochleaSubtleRadial)"
+                filter="url(#harmonicAuraBlur)"
+              />
 
-            <!-- Inner Ear: Semicircular Canals & Vestibule (#F8CE78 / #E5A243 / #B87324) -->
-            <g>
+              <!-- Celebratory 8/8 Victory Halo -->
+              <circle
+                class="victory-halo opacity-0 transition-opacity duration-500"
+                cx="536"
+                cy="168"
+                r="68"
+                fill="url(#cochleaVictoryRadial)"
+                filter="url(#harmonicAuraBlur)"
+              />
+
+              <!-- Vestibular & Cochlear Nerve Trunks -->
+              <path
+                d="M552,138 C595,134 652,128 712,122 L714,136 C654,142 598,146 556,150 Z"
+                fill="url(#vestibularNerveGrad)"
+              />
+              <path
+                d="M558,154 C605,152 664,148 724,144 L724,160 C664,164 605,166 558,168 Z"
+                fill="url(#vestibularNerveGrad)"
+              />
+
               <!-- Posterior Semicircular Canal -->
               <path
-                d="M476,122
-                   C482,94 514,94 520,124
-                   C525,148 508,168 486,164"
+                d="M474,126
+                   C482,96 516,86 534,106
+                   C548,122 542,148 522,158"
                 fill="none"
                 stroke="#B87324"
-                stroke-width="11"
+                stroke-width="13"
                 stroke-linecap="round"
               />
               <path
-                d="M476,122
-                   C482,94 514,94 520,124
-                   C525,148 508,168 486,164"
+                d="M474,126
+                   C482,96 516,86 534,106
+                   C548,122 542,148 522,158"
+                fill="none"
+                stroke="url(#amberCanalGrad)"
+                stroke-width="9.5"
+                stroke-linecap="round"
+              />
+
+              <!-- Superior Semicircular Canal -->
+              <path
+                d="M446,136
+                   C440,94 468,72 492,86
+                   C512,98 508,128 492,144"
+                fill="none"
+                stroke="#B87324"
+                stroke-width="13.5"
+                stroke-linecap="round"
+              />
+              <path
+                d="M446,136
+                   C440,94 468,72 492,86
+                   C512,98 508,128 492,144"
+                fill="none"
+                stroke="url(#amberCanalGrad)"
+                stroke-width="10"
+                stroke-linecap="round"
+              />
+
+              <!-- Lateral Semicircular Canal -->
+              <path
+                d="M454,144
+                   C474,124 514,122 522,138
+                   C528,150 502,162 474,160"
+                fill="none"
+                stroke="#B87324"
+                stroke-width="12"
+                stroke-linecap="round"
+              />
+              <path
+                d="M454,144
+                   C474,124 514,122 522,138
+                   C528,150 502,162 474,160"
                 fill="none"
                 stroke="url(#amberCanalGrad)"
                 stroke-width="8.5"
                 stroke-linecap="round"
               />
 
-              <!-- Superior (Anterior) Semicircular Canal -->
+              <!-- Vestibule Body -->
               <path
-                d="M446,136
-                   C438,94 468,76 488,104
-                   C498,118 494,136 484,146"
-                fill="none"
-                stroke="#B87324"
-                stroke-width="11.5"
-                stroke-linecap="round"
-              />
-              <path
-                d="M446,136
-                   C438,94 468,76 488,104
-                   C498,118 494,136 484,146"
-                fill="none"
-                stroke="url(#amberCanalGrad)"
-                stroke-width="9"
-                stroke-linecap="round"
-              />
-
-              <!-- Lateral (Horizontal) Semicircular Canal -->
-              <path
-                d="M454,142
-                   C474,124 512,126 514,142
-                   C516,156 484,160 462,154"
-                fill="none"
-                stroke="#B87324"
-                stroke-width="10.5"
-                stroke-linecap="round"
-              />
-              <path
-                d="M454,142
-                   C474,124 512,126 514,142
-                   C516,156 484,160 462,154"
-                fill="none"
-                stroke="url(#amberCanalGrad)"
-                stroke-width="8"
-                stroke-linecap="round"
-              />
-
-              <!-- Central Vestibule Chamber -->
-              <path
-                d="M436,142
-                   C438,128 456,124 476,130
-                   C496,136 512,148 518,162
-                   C512,178 488,186 462,182
-                   C442,178 434,162 436,142 Z"
+                d="M432,142
+                   C434,126 456,122 476,128
+                   C494,134 504,152 496,168
+                   C488,182 462,184 444,174
+                   C432,168 430,154 432,142 Z"
                 fill="url(#amberCanalGrad)"
-              />
-              <!-- Oval Window & Round Window Subtle Anatomical Details -->
-              <ellipse cx="441" cy="153" rx="3.5" ry="6.5" fill="#FFF3CC" opacity="0.8" />
-              <circle cx="458" cy="172" r="4.2" fill="#9E5E18" opacity="0.7" />
-            </g>
-
-            <!-- Inner Ear: Spiral Cochlea (#F8CE78 / #E5A243 / #B87324) -->
-            <g id="cochleaGroup">
-              <!-- Golden Harmonic Victory Halo (Activated on 8/8) -->
-              <circle
-                cx="578"
-                cy="162"
-                r="68"
-                fill="url(#cochleaVictoryRadial)"
-                filter="url(#harmonicAuraBlur)"
-                class="victory-halo opacity-0 transition-opacity duration-500"
+                stroke="#B87324"
+                stroke-width="1.5"
               />
 
-              <!-- Cochlea Outer Shell & 2.5-Turn Spiral -->
-              <g class="cochlea-core transition-all duration-500">
-                <!-- Base Basal Turn Connecting from Vestibule -->
+              <!-- Spiral Cochlea (#F8CE78 / #E5A243 / #B87324) -->
+              <g class="cochlea-core">
                 <path
-                  d="M506,162
-                     C514,192 544,212 580,210
-                     C616,208 638,182 634,150
-                     C630,118 600,102 568,108
-                     C536,114 520,140 526,168
-                     C532,192 558,202 584,196
-                     C608,190 618,168 612,148
-                     C606,130 584,122 566,128
-                     C548,134 542,152 548,168
-                     C554,180 572,184 584,176
-                     C594,168 594,154 584,148
-                     C576,144 568,148 568,156"
+                  d="M486,162
+                     C492,136 524,124 552,136
+                     C578,148 586,182 568,204
+                     C550,224 516,222 498,202
+                     C484,186 486,162 504,150
+                     C520,140 544,146 552,164
+                     C558,180 548,196 532,198
+                     C518,200 508,188 512,174
+                     C515,164 526,160 534,166
+                     C539,170 538,178 532,180"
                   fill="url(#cochleaSpiralGrad)"
-                />
-
-                <!-- Deep Golden-Bronze Helical Spiral Groove for 3D Snail-Shell Depth -->
-                <path
-                  d="M524,164
-                     C528,190 554,206 582,203
-                     C612,200 630,176 626,148
-                     C622,122 596,108 570,114
-                     C544,120 532,144 538,168
-                     C544,188 566,196 586,190
-                     C604,184 612,166 606,148
-                     C600,134 582,128 568,134
-                     C554,140 550,154 556,166
-                     C562,176 576,178 584,170
-                     C590,164 588,154 580,151"
-                  fill="none"
-                  stroke="#9C5D18"
-                  stroke-width="3.2"
+                  stroke="#B87324"
+                  stroke-width="2.2"
                   stroke-linecap="round"
-                  stroke-opacity="0.72"
                 />
-
-                <!-- Specular Top Highlight Ridge along the Spiral Whorls -->
                 <path
-                  d="M542,126 C566,110 604,114 620,138 M554,142 C572,130 596,134 604,150"
+                  d="M494,166
+                     C500,144 526,134 548,144
+                     C568,154 574,180 560,196
+                     C546,212 520,210 506,194
+                     C496,182 498,164 512,156
+                     C524,148 540,154 544,168
+                     C548,178 540,188 530,188"
                   fill="none"
-                  stroke="#FFF3C4"
+                  stroke="#9E5E18"
                   stroke-width="2.4"
                   stroke-linecap="round"
-                  stroke-opacity="0.75"
+                  opacity="0.72"
                 />
-
-                <!-- Continuous Subtle Golden Shimmer Along Cochlea Spiral -->
-                <circle
-                  cx="578"
-                  cy="160"
-                  r="34"
+                <path
+                  d="M503,154 C518,142 542,142 556,156"
                   fill="none"
-                  stroke="#FFF5CC"
-                  stroke-width="3"
-                  stroke-dasharray="18 24"
-                  class="anim-cochlea-shimmer"
+                  stroke="#FFF2CC"
+                  stroke-width="2.8"
+                  stroke-linecap="round"
+                  opacity="0.8"
                 />
               </g>
+
+              <!-- Golden Vector Sparkle Burst on 8 / 8 Victory -->
+              <g id="cochleaSparkles" class="pointer-events-none opacity-0">
+                <path class="sparkle-star" style="transform-origin: 492px 124px; animation-delay: 0.04s;" d="M492,113 L494.5,121.5 L503,124 L494.5,126.5 L492,135 L489.5,126.5 L481,124 L489.5,121.5 Z" fill="#F8CE78" stroke="#ff791f" stroke-width="0.8" />
+                <path class="sparkle-star" style="transform-origin: 576px 134px; animation-delay: 0.14s;" d="M576,124 L578.2,131.8 L586,134 L578.2,136.2 L576,144 L573.8,136.2 L566,134 L573.8,131.8 Z" fill="#FFE699" stroke="#E5A243" stroke-width="0.8" />
+                <path class="sparkle-star" style="transform-origin: 584px 202px; animation-delay: 0.24s;" d="M584,193 L586,200 L593,202 L586,204 L584,211 L582,204 L575,202 L582,200 Z" fill="#F8CE78" stroke="#ff791f" stroke-width="0.8" />
+                <path class="sparkle-star" style="transform-origin: 486px 206px; animation-delay: 0.18s;" d="M486,197 L488,204 L495,206 L488,208 L486,215 L484,208 L477,206 L484,204 Z" fill="#FFE699" stroke="#E5A243" stroke-width="0.8" />
+                <path class="sparkle-star" style="transform-origin: 536px 116px; animation-delay: 0.1s;" d="M536,108 L537.8,114.2 L544,116 L537.8,117.8 L536,124 L534.2,117.8 L528,116 L534.2,114.2 Z" fill="#FFF5D6" stroke="#ff791f" stroke-width="0.8" />
+              </g>
             </g>
-
-            <!-- Outer Ear: Auricle (Pinna) & Earlobe (#F7D5C2 to #C97B5B) -->
-            <g>
-              <!-- Earlobe (Inferior Lobule) -->
-              <path
-                d="M148,206
-                   C142,232 152,262 176,264
-                   C198,266 210,244 206,214
-                   C202,196 184,192 148,206 Z"
-                fill="url(#earlobeGrad)"
-              />
-
-              <!-- Main Auricle Silhouette -->
-              <path
-                d="M196,146
-                   C192,112 184,74 156,64
-                   C126,54 114,88 122,132
-                   C128,164 138,194 148,214
-                   C162,232 188,230 198,208
-                   C204,194 202,172 196,146 Z"
-                fill="url(#auricleMainGrad)"
-              />
-
-              <!-- Outer Helix Rim Smooth Fold -->
-              <path
-                d="M188,118
-                   C186,84 172,62 148,64
-                   C124,66 118,96 125,134
-                   C131,164 142,190 152,208"
-                fill="none"
-                stroke="url(#auricleHelixHighlight)"
-                stroke-width="11"
-                stroke-linecap="round"
-              />
-
-              <!-- Scaphoid Fossa Soft Shadow Groove -->
-              <path
-                d="M174,114
-                   C172,88 160,74 144,77
-                   C130,80 128,104 134,134
-                   C139,158 148,180 156,194"
-                fill="none"
-                stroke="#C97B5B"
-                stroke-width="5.5"
-                stroke-linecap="round"
-                stroke-opacity="0.55"
-              />
-
-              <!-- Antihelix Smooth Sculpted Ridge -->
-              <path
-                d="M164,104
-                   C152,102 144,118 148,144
-                   C152,168 164,186 178,192"
-                fill="none"
-                stroke="#F9DEC9"
-                stroke-width="7.5"
-                stroke-linecap="round"
-                stroke-opacity="0.88"
-              />
-
-              <!-- Deep Concha Bowl Funneling into External Auditory Canal -->
-              <path
-                d="M164,132
-                   C158,148 162,174 176,184
-                   C188,190 202,186 206,170
-                   C208,154 198,136 184,130
-                   C176,126 168,128 164,132 Z"
-                fill="url(#conchaBowlGrad)"
-              />
-
-              <!-- Tragus Cartilage Flap Anterior to Canal Opening -->
-              <path
-                d="M196,144
-                   C206,148 210,162 204,174
-                   C199,180 192,176 192,166
-                   C192,156 192,148 196,144 Z"
-                fill="#F4C7B0"
-              />
-            </g>
-
-            <!-- Subtle Translucent Sound Waves Entering the Auditory Canal -->
-            <g fill="none" stroke="#19587f" stroke-linecap="round">
-              <path
-                d="M176,154 C183,161 183,173 176,180"
-                stroke-width="2"
-                class="anim-wave-1"
-              />
-              <path
-                d="M236,153 C242,160 242,171 236,178"
-                stroke-width="1.8"
-                class="anim-wave-2"
-              />
-              <path
-                d="M298,152 C304,159 304,169 298,176"
-                stroke-width="1.6"
-                class="anim-wave-3"
-              />
-            </g>
-          </g>
-
-          <!-- Golden-Orange Sparkle Burst Around Cochlea (Triggered at 8/8 Score) -->
-          <g id="sparkleBurstGroup" class="pointer-events-none opacity-0" aria-hidden="true">
-            <path class="sparkle-star" style="transform-origin: 540px 104px; animation-delay: 0s;" d="M540 96 L542 102 L548 104 L542 106 L540 112 L538 106 L532 104 L538 102 Z" fill="#ff791f" />
-            <path class="sparkle-star" style="transform-origin: 626px 108px; animation-delay: 0.12s;" d="M626 99 L628.5 105.5 L635 108 L628.5 110.5 L626 117 L623.5 110.5 L617 108 L623.5 105.5 Z" fill="#F8CE78" />
-            <path class="sparkle-star" style="transform-origin: 644px 168px; animation-delay: 0.22s;" d="M644 160 L646 166 L652 168 L646 170 L644 176 L642 170 L636 168 L642 166 Z" fill="#ff791f" />
-            <path class="sparkle-star" style="transform-origin: 614px 214px; animation-delay: 0.3s;" d="M614 206 L616 212 L622 214 L616 216 L614 222 L612 216 L606 214 L612 212 Z" fill="#E5A243" />
-            <path class="sparkle-star" style="transform-origin: 534px 210px; animation-delay: 0.18s;" d="M534 202 L536 208 L542 210 L536 212 L534 218 L532 212 L526 210 L532 208 Z" fill="#F8CE78" />
-            <circle class="sparkle-star" style="transform-origin: 582px 94px; animation-delay: 0.25s;" cx="582" cy="94" r="2.8" fill="#ff791f" />
-            <circle class="sparkle-star" style="transform-origin: 642px 136px; animation-delay: 0.08s;" cx="642" cy="136" r="2.5" fill="#F8CE78" />
           </g>
         </svg>
-      </section>
+      </div>
 
-      <!-- Delicate 1px Hairline Divider -->
-      <div class="w-full h-[1px] bg-[#E1E4E8]"></div>
+    </section>
 
-      <!-- 2. Integrated Word Bank Strip -->
-      <section
-        id="wordBankZone"
+    <!-- MIDDLE SECTION: Two-Column Classification Table -->
+    <section class="classification-table w-full grid grid-cols-1 md:grid-cols-2">
+
+      <!-- Category A: Possible causes or symptoms of hearing loss -->
+      <div class="table-col-divider flex flex-col">
+        <div class="table-col-header px-4 py-3 text-center text-[13.5px] sm:text-[14.5px] leading-snug">
+          Possible causes or symptoms of hearing loss
+        </div>
+        <div
+          id="dropCauses"
+          data-zone="table"
+          data-category="causes"
+          class="drop-zone flex-1 min-h-[128px] sm:min-h-[136px] p-3.5 sm:p-4 flex flex-wrap items-start content-start gap-2.5"
+          aria-label="Possible causes or symptoms of hearing loss"
+        ></div>
+      </div>
+
+      <!-- Category B: Ways to protect your hearing -->
+      <div class="flex flex-col">
+        <div class="table-col-header px-4 py-3 text-center text-[13.5px] sm:text-[14.5px] leading-snug">
+          Ways to protect your hearing
+        </div>
+        <div
+          id="dropProtect"
+          data-zone="table"
+          data-category="protect"
+          class="drop-zone flex-1 min-h-[128px] sm:min-h-[136px] p-3.5 sm:p-4 flex flex-wrap items-start content-start gap-2.5"
+          aria-label="Ways to protect your hearing"
+        ></div>
+      </div>
+
+    </section>
+
+    <!-- WORD BANK SECTION: draggable words (bottom) -->
+    <section class="w-full bg-[#FFFFFF] px-3 sm:px-5 pt-3 pb-1">
+      <div
+        id="wordBank"
         data-zone="bank"
+        class="word-bank-box w-full min-h-[78px] p-3 flex flex-wrap items-center justify-center content-center gap-2.5"
         aria-label="Word bank"
-        class="word-bank-zone w-full bg-[#FFFFFF] px-4 sm:px-6 py-3.5 min-h-[64px] flex flex-wrap items-center justify-center gap-2.5"
-      ></section>
+      ></div>
+    </section>
 
-      <!-- Delicate 1px Hairline Divider -->
-      <div class="w-full h-[1px] bg-[#D8DDE3]"></div>
-
-      <!-- 3. Unified Two-Column Classification Table -->
-      <section class="w-full grid grid-cols-1 md:grid-cols-2 bg-[#FFFFFF]">
-
-        <!-- Column 1: Possible causes or symptoms of hearing loss -->
-        <div class="flex flex-col border-b md:border-b-0 md:border-r border-[#D8DDE3]">
-          <div class="bg-[#FFF8F2] border-b border-[#D8DDE3] px-4 py-3 flex items-center justify-center text-center min-h-[54px]">
-            <h2 class="text-[13px] sm:text-[14px] font-bold text-[#ff791f] leading-snug">
-              Possible causes or symptoms of hearing loss
-            </h2>
-          </div>
-          <div
-            id="colCausesZone"
-            data-zone="causes"
-            aria-label="Possible causes or symptoms of hearing loss"
-            class="drop-zone flex-1 min-h-[138px] sm:min-h-[158px] p-3.5 sm:p-4 flex flex-wrap items-start content-start justify-center gap-2.5 bg-[#FFFFFF]"
-          ></div>
+    <!-- BOTTOM SECTION: Score Counter, Live Status Text & Tactile Flash Action Buttons -->
+    <footer class="w-full bg-[#FFFFFF] px-3 sm:px-5 pt-2 pb-2 flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div class="flex flex-wrap items-center justify-center sm:justify-start gap-x-4 gap-y-1">
+        <div id="scoreDisplay" class="text-[14px] sm:text-[15px] font-bold text-[#19587f]">
+          Score: 0 / 8
         </div>
+        <div id="statusMessage" class="text-[12.5px] sm:text-[13px] font-normal text-[#4E6E82]" aria-live="polite"></div>
+      </div>
 
-        <!-- Column 2: Ways to protect your hearing -->
-        <div class="flex flex-col">
-          <div class="bg-[#FFF8F2] border-b border-[#D8DDE3] px-4 py-3 flex items-center justify-center text-center min-h-[54px]">
-            <h2 class="text-[13px] sm:text-[14px] font-bold text-[#ff791f] leading-snug">
-              Ways to protect your hearing
-            </h2>
-          </div>
-          <div
-            id="colProtectZone"
-            data-zone="protect"
-            aria-label="Ways to protect your hearing"
-            class="drop-zone flex-1 min-h-[138px] sm:min-h-[158px] p-3.5 sm:p-4 flex flex-wrap items-start content-start justify-center gap-2.5 bg-[#FFFFFF]"
-          ></div>
-        </div>
+      <div class="flex flex-wrap items-center justify-center gap-2.5">
+        <button id="checkBtn" type="button" class="flash-btn btn-check">
+          Check
+        </button>
+        <button id="showAnswersBtn" type="button" class="flash-btn btn-secondary">
+          Show Answers
+        </button>
+        <button id="resetBtn" type="button" class="flash-btn btn-secondary">
+          Reset
+        </button>
+      </div>
+    </footer>
 
-      </section>
-
-      <!-- Delicate 1px Hairline Divider -->
-      <div class="w-full h-[1px] bg-[#E1E4E8]"></div>
-
-      <!-- 4. Bottom Score & Action Controls Bar -->
-      <footer class="w-full bg-[#FAFCFE] px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
-        <!-- Score Counter -->
-        <div class="flex items-center">
-          <span id="scoreDisplay" class="text-[13px] sm:text-[14px] font-bold text-[#19587f]">
-            Score: 0 / 8
-          </span>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
-          <button
-            id="checkBtn"
-            type="button"
-            class="flash-btn-primary px-4 py-2 text-[12px] sm:text-[13px] cursor-pointer"
-          >
-            Check
-          </button>
-          <button
-            id="showAnswersBtn"
-            type="button"
-            class="flash-btn-accent px-4 py-2 text-[12px] sm:text-[13px] cursor-pointer"
-          >
-            Show Answers
-          </button>
-          <button
-            id="resetBtn"
-            type="button"
-            class="flash-btn-secondary px-4 py-2 text-[12px] sm:text-[13px] cursor-pointer"
-          >
-            Reset
-          </button>
-        </div>
-      </footer>
-
-    </div>
   </main>
 
   <script>
-    /**
-     * Hearing Health Classification (Ruffle Interactive)
-     * Self-contained interactive drag-and-drop & tap-to-place educational simulation
-     * with synthesized Web Audio API sound effects.
-     */
     (function () {
-      'use strict';
+      "use strict";
 
-      /* ----------------------------------------------------------------------
-       * 1. Canonical Data & Category Mapping
-       * ---------------------------------------------------------------------- */
-      const ITEMS = [
-        { id: 'headphones', label: 'Headphones', category: 'causes' },
-        { id: 'concerts', label: 'Concerts', category: 'causes' },
-        { id: 'ear-damage', label: 'Ear damage', category: 'causes' },
-        { id: 'volume', label: 'Volume', category: 'causes' },
-        { id: 'earplugs', label: 'Earplugs', category: 'protect' },
-        { id: 'noise', label: 'Noise', category: 'causes' },
-        { id: 'ringing', label: 'Ringing', category: 'causes' },
-        { id: 'hearing-protection', label: 'Hearing protection', category: 'protect' }
+      /**
+       * Exact 8 Word Items and Target Categories
+       * - causes (6): Headphones, Concerts, Ear damage, Volume, Noise, Ringing
+       * - protect (2): Earplugs, Hearing protection
+       */
+      const WORD_ITEMS = [
+        { id: "w1", text: "Headphones",         correctCategory: "causes"  },
+        { id: "w2", text: "Concerts",           correctCategory: "causes"  },
+        { id: "w3", text: "Ear damage",         correctCategory: "causes"  },
+        { id: "w4", text: "Volume",             correctCategory: "causes"  },
+        { id: "w5", text: "Noise",              correctCategory: "causes"  },
+        { id: "w6", text: "Ringing",            correctCategory: "causes"  },
+        { id: "w7", text: "Earplugs",           correctCategory: "protect" },
+        { id: "w8", text: "Hearing protection", correctCategory: "protect" }
       ];
 
-      /* Application State */
-      const state = {
-        sfxEnabled: true,
-        selectedId: null,       // Currently tap-selected pill ID
-        placements: {           // Maps itemId -> 'bank' | 'causes' | 'protect'
-          'headphones': 'bank',
-          'concerts': 'bank',
-          'ear-damage': 'bank',
-          'volume': 'bank',
-          'earplugs': 'bank',
-          'noise': 'bank',
-          'ringing': 'bank',
-          'hearing-protection': 'bank'
-        },
-        bankOrder: [],          // Randomized array of item IDs in the bank
-        validation: {},         // Maps itemId -> true (correct) | false (incorrect) | undefined
-        score: 0
-      };
+      // DOM References
+      const wordBankEl     = document.getElementById("wordBank");
+      const dropCausesEl   = document.getElementById("dropCauses");
+      const dropProtectEl  = document.getElementById("dropProtect");
+      const scoreDisplayEl = document.getElementById("scoreDisplay");
+      const statusMsgEl    = document.getElementById("statusMessage");
+      const checkBtn       = document.getElementById("checkBtn");
+      const showAnswersBtn = document.getElementById("showAnswersBtn");
+      const resetBtn       = document.getElementById("resetBtn");
+      const innerEarGroup  = document.getElementById("innerEarGroup");
+      const cochleaSparkles = document.getElementById("cochleaSparkles");
 
-      /* DOM References */
-      const wordBankZone = document.getElementById('wordBankZone');
-      const colCausesZone = document.getElementById('colCausesZone');
-      const colProtectZone = document.getElementById('colProtectZone');
-      const scoreDisplay = document.getElementById('scoreDisplay');
-      const checkBtn = document.getElementById('checkBtn');
-      const showAnswersBtn = document.getElementById('showAnswersBtn');
-      const resetBtn = document.getElementById('resetBtn');
-      const cochleaGroup = document.getElementById('cochleaGroup');
-      const sparkleBurstGroup = document.getElementById('sparkleBurstGroup');
-/* ... existing code ... -->
-      /* ----------------------------------------------------------------------
-       * 7. Control Buttons Wiring
-       * ---------------------------------------------------------------------- */
-      checkBtn.addEventListener('click', () => {
-        ensureAudioContext();
-        checkAnswers();
+      const dropContainers = [wordBankEl, dropCausesEl, dropProtectEl];
+
+      // Interaction State
+      let selectedPillEl = null;
+      let dragState = null;
+
+      /**
+       * Web Audio API Retro Flash Sound Synthesizer
+       * Gracefully handles autoplay/iframe audio restrictions
+       */
+      const SoundFX = (function () {
+        let ctx = null;
+
+        function getCtx() {
+          if (!ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+              ctx = new AudioCtx();
+            }
+          }
+          if (ctx && ctx.state === "suspended") {
+            ctx.resume().catch(function () {});
+          }
+          return ctx;
+        }
+
+        function playTone(freq, endFreq, duration, type, volume, delay) {
+          try {
+            const audio = getCtx();
+            if (!audio) return;
+            const now = audio.currentTime + (delay || 0);
+            const osc = audio.createOscillator();
+            const gain = audio.createGain();
+            osc.type = type || "sine";
+            osc.frequency.setValueAtTime(freq, now);
+            if (endFreq && endFreq !== freq) {
+              osc.frequency.exponentialRampToValueAtTime(endFreq, now + duration);
+            }
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.linearRampToValueAtTime(volume || 0.08, now + 0.012);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+            osc.connect(gain);
+            gain.connect(audio.destination);
+            osc.start(now);
+            osc.stop(now + duration + 0.02);
+          } catch (err) {
+            // Ignore audio errors in restricted environments
+          }
+        }
+
+        return {
+          pickup: function () {
+            playTone(460, 640, 0.075, "triangle", 0.07, 0);
+          },
+          drop: function () {
+            playTone(340, 520, 0.09, "sine", 0.08, 0);
+          },
+          correct: function () {
+            playTone(587.33, 587.33, 0.11, "triangle", 0.08, 0);
+            playTone(880, 880, 0.18, "triangle", 0.08, 0.08);
+          },
+          wrong: function () {
+            playTone(210, 155, 0.19, "sawtooth", 0.055, 0);
+          },
+          reset: function () {
+            playTone(520, 280, 0.14, "sine", 0.065, 0);
+          },
+          victory: function () {
+            const notes = [523.25, 659.25, 783.99, 1046.5];
+            notes.forEach(function (n, idx) {
+              playTone(n, n, 0.22, "triangle", 0.085, idx * 0.085);
+            });
+          }
+        };
+      })();
+
+      /**
+       * Fisher-Yates shuffle helper
+       */
+      function shuffleArray(arr) {
+        const copy = arr.slice();
+        for (let i = copy.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const tmp = copy[i];
+          copy[i] = copy[j];
+          copy[j] = tmp;
+        }
+        return copy;
+      }
+
+      /**
+       * Clear validation state (classes & badge) on a single pill
+       */
+      function clearPillValidation(pill) {
+        pill.classList.remove("is-correct", "is-incorrect", "shake-error");
+        const oldBadge = pill.querySelector(".pill-badge");
+        if (oldBadge) {
+          oldBadge.remove();
+        }
+      }
+
+      /**
+       * Apply validation mark (✓ or ✕) to a pill
+       */
+      function markPill(pill, isCorrect) {
+        clearPillValidation(pill);
+        const badge = document.createElement("span");
+        badge.className = "pill-badge " + (isCorrect ? "badge-correct" : "badge-incorrect");
+        badge.textContent = isCorrect ? "✓" : "✕";
+        pill.appendChild(badge);
+
+        if (isCorrect) {
+          pill.classList.add("is-correct");
+        } else {
+          pill.classList.add("is-incorrect");
+          // Trigger reflow so shake animation replays reliably
+          void pill.offsetWidth;
+          pill.classList.add("shake-error");
+        }
+      }
+
+      /**
+       * Toggle cochlea golden victory aura and sparkle burst
+       */
+      function setVictoryVisuals(active) {
+        if (active) {
+          innerEarGroup.classList.add("cochlea-victory-active");
+          cochleaSparkles.classList.remove("opacity-0", "sparkle-burst");
+          void cochleaSparkles.offsetWidth;
+          cochleaSparkles.classList.add("sparkle-burst");
+        } else {
+          innerEarGroup.classList.remove("cochlea-victory-active");
+          cochleaSparkles.classList.remove("sparkle-burst");
+          cochleaSparkles.classList.add("opacity-0");
+        }
+      }
+
+      /**
+       * Update tap-selection state
+       */
+      function setSelectedPill(pill) {
+        if (selectedPillEl && selectedPillEl !== pill) {
+          selectedPillEl.classList.remove("is-selected");
+        }
+        selectedPillEl = pill;
+        if (selectedPillEl) {
+          selectedPillEl.classList.add("is-selected");
+          dropCausesEl.classList.add("is-tap-target");
+          dropProtectEl.classList.add("is-tap-target");
+        } else {
+          dropCausesEl.classList.remove("is-tap-target");
+          dropProtectEl.classList.remove("is-tap-target");
+        }
+      }
+
+      /**
+       * Move a pill into a target container (wordBank, dropCauses, or dropProtect)
+       */
+      function movePillToContainer(pill, targetContainer, playAudio) {
+        if (!pill || !targetContainer) return;
+
+        clearPillValidation(pill);
+        setVictoryVisuals(false);
+
+        if (selectedPillEl === pill) {
+          setSelectedPill(null);
+        }
+
+        targetContainer.appendChild(pill);
+
+        // Trigger spring snap animation
+        pill.classList.remove("snap-in");
+        void pill.offsetWidth;
+        pill.classList.add("snap-in");
+
+        statusMsgEl.textContent = "";
+        statusMsgEl.style.color = "#4E6E82";
+
+        if (playAudio) {
+          SoundFX.drop();
+        }
+      }
+
+      /**
+       * Create a draggable & tappable word pill element
+       */
+      function createWordPill(item) {
+        const pill = document.createElement("div");
+        pill.className = "word-pill";
+        pill.dataset.id = item.id;
+        pill.dataset.correctCategory = item.correctCategory;
+        pill.setAttribute("role", "button");
+        pill.setAttribute("tabindex", "0");
+        pill.setAttribute("aria-label", item.text);
+
+        const labelSpan = document.createElement("span");
+        labelSpan.textContent = item.text;
+        pill.appendChild(labelSpan);
+
+        // Custom Pointer Events Drag-and-Drop + Tap Detection
+        pill.addEventListener("pointerdown", function (e) {
+          if (e.button !== undefined && e.button !== 0) return;
+          e.preventDefault();
+
+          const rect = pill.getBoundingClientRect();
+          dragState = {
+            pill: pill,
+            pointerId: e.pointerId,
+            startX: e.clientX,
+            startY: e.clientY,
+            offsetX: e.clientX - rect.left,
+            offsetY: e.clientY - rect.top,
+            hasMoved: false,
+            ghostEl: null,
+            activeDropTarget: null
+          };
+
+          try {
+            pill.setPointerCapture(e.pointerId);
+          } catch (err) {}
+        });
+
+        pill.addEventListener("pointermove", function (e) {
+          if (!dragState || dragState.pill !== pill || dragState.pointerId !== e.pointerId) return;
+
+          const dx = e.clientX - dragState.startX;
+          const dy = e.clientY - dragState.startY;
+
+          // Start drag once movement exceeds 6px threshold
+          if (!dragState.hasMoved && Math.hypot(dx, dy) >= 6) {
+            dragState.hasMoved = true;
+            setSelectedPill(null);
+            SoundFX.pickup();
+
+            const ghost = document.createElement("div");
+            ghost.className = "drag-ghost";
+            ghost.textContent = item.text;
+            document.body.appendChild(ghost);
+            dragState.ghostEl = ghost;
+
+            pill.classList.add("is-dragging-source");
+          }
+
+          if (dragState.hasMoved && dragState.ghostEl) {
+            const x = e.clientX - dragState.offsetX;
+            const y = e.clientY - dragState.offsetY;
+            dragState.ghostEl.style.transform = "translate3d(" + x + "px, " + y + "px, 0) scale(1.04)";
+
+            // Detect drop zone underneath pointer
+            const hoveredZone = getDropZoneAtPoint(e.clientX, e.clientY);
+            if (dragState.activeDropTarget !== hoveredZone) {
+              if (dragState.activeDropTarget) {
+                dragState.activeDropTarget.classList.remove("is-drag-over");
+              }
+              dragState.activeDropTarget = hoveredZone;
+              if (dragState.activeDropTarget) {
+                dragState.activeDropTarget.classList.add("is-drag-over");
+              }
+            }
+          }
+        });
+
+        function finishPointerInteraction(e, cancelled) {
+          if (!dragState || dragState.pill !== pill || dragState.pointerId !== e.pointerId) return;
+
+          const current = dragState;
+          dragState = null;
+
+          try {
+            pill.releasePointerCapture(e.pointerId);
+          } catch (err) {}
+
+          pill.classList.remove("is-dragging-source");
+
+          if (current.ghostEl) {
+            current.ghostEl.remove();
+          }
+
+          if (current.activeDropTarget) {
+            current.activeDropTarget.classList.remove("is-drag-over");
+          }
+
+          if (cancelled) return;
+
+          if (current.hasMoved) {
+            const targetZone = getDropZoneAtPoint(e.clientX, e.clientY);
+            if (targetZone && targetZone !== pill.parentElement) {
+              movePillToContainer(pill, targetZone, true);
+            }
+          } else {
+            // Short tap/click toggles selection for tap-to-place accessibility
+            if (selectedPillEl === pill) {
+              setSelectedPill(null);
+            } else {
+              setSelectedPill(pill);
+              SoundFX.pickup();
+            }
+          }
+        }
+
+        pill.addEventListener("pointerup", function (e) {
+          finishPointerInteraction(e, false);
+        });
+
+        pill.addEventListener("pointercancel", function (e) {
+          finishPointerInteraction(e, true);
+        });
+
+        // Keyboard accessibility (Enter/Space to select/deselect)
+        pill.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            if (selectedPillEl === pill) {
+              setSelectedPill(null);
+            } else {
+              setSelectedPill(pill);
+              SoundFX.pickup();
+            }
+          }
+        });
+
+        return pill;
+      }
+
+      /**
+       * Determine which drop zone (wordBank, dropCauses, dropProtect) lies under (x, y)
+       */
+      function getDropZoneAtPoint(x, y) {
+        const el = document.elementFromPoint(x, y);
+        if (!el) return null;
+        for (let i = 0; i < dropContainers.length; i++) {
+          if (dropContainers[i].contains(el)) {
+            return dropContainers[i];
+          }
+        }
+        return null;
+      }
+
+      /**
+       * Enable tap-to-place on drop zones when a pill is selected
+       */
+      dropContainers.forEach(function (zone) {
+        zone.addEventListener("click", function (e) {
+          if (!selectedPillEl) return;
+          // Ignore clicks directly on a pill (handled by pill's pointer events)
+          if (e.target.closest(".word-pill")) return;
+
+          if (selectedPillEl.parentElement !== zone) {
+            movePillToContainer(selectedPillEl, zone, true);
+          } else {
+            setSelectedPill(null);
+          }
+        });
       });
 
-      showAnswersBtn.addEventListener('click', () => {
-        ensureAudioContext();
-        showAnswers();
+      /**
+       * Render all 8 words shuffled into the Word Bank (Initial Load & Reset)
+       */
+      function initWordBank(playAudio) {
+        setSelectedPill(null);
+        setVictoryVisuals(false);
+
+        wordBankEl.innerHTML = "";
+        dropCausesEl.innerHTML = "";
+        dropProtectEl.innerHTML = "";
+
+        const shuffled = shuffleArray(WORD_ITEMS);
+        shuffled.forEach(function (item) {
+          const pill = createWordPill(item);
+          wordBankEl.appendChild(pill);
+        });
+
+        scoreDisplayEl.textContent = "Score: 0 / 8";
+        statusMsgEl.textContent = "";
+        statusMsgEl.style.color = "#4E6E82";
+
+        if (playAudio) {
+          SoundFX.reset();
+        }
+      }
+
+      /**
+       * Check Button Handler:
+       * Evaluates every word currently placed inside the two table columns
+       */
+      checkBtn.addEventListener("click", function () {
+        setSelectedPill(null);
+
+        // Clear any leftover marks on unplaced pills in Word Bank
+        const bankPills = wordBankEl.querySelectorAll(".word-pill");
+        bankPills.forEach(clearPillValidation);
+
+        const tableZones = [dropCausesEl, dropProtectEl];
+        let placedCount = 0;
+        let correctCount = 0;
+        let incorrectCount = 0;
+
+        tableZones.forEach(function (zone) {
+          const zoneCategory = zone.dataset.category;
+          const pills = zone.querySelectorAll(".word-pill");
+          pills.forEach(function (pill) {
+            placedCount++;
+            const isMatch = pill.dataset.correctCategory === zoneCategory;
+            markPill(pill, isMatch);
+            if (isMatch) {
+              correctCount++;
+            } else {
+              incorrectCount++;
+            }
+          });
+        });
+
+        scoreDisplayEl.textContent = "Score: " + correctCount + " / 8";
+
+        if (placedCount === 0) {
+          setVictoryVisuals(false);
+          statusMsgEl.textContent = "Place the words into the table columns first.";
+          statusMsgEl.style.color = "#19587f";
+          SoundFX.wrong();
+          return;
+        }
+
+        if (correctCount === 8 && placedCount === 8) {
+          setVictoryVisuals(true);
+          statusMsgEl.textContent = "Excellent! All 8 words are classified correctly.";
+          statusMsgEl.style.color = "#1B6B42";
+          SoundFX.victory();
+        } else {
+          setVictoryVisuals(false);
+          const remaining = 8 - placedCount;
+          if (remaining > 0) {
+            statusMsgEl.textContent =
+              correctCount + " correct, " + remaining + " remaining in the word bank.";
+          } else {
+            statusMsgEl.textContent =
+              correctCount + " of 8 correct. Adjust the items marked with ✕.";
+          }
+          statusMsgEl.style.color = incorrectCount > 0 ? "#A82A1C" : "#19587f";
+          if (incorrectCount > 0) {
+            SoundFX.wrong();
+          } else {
+            SoundFX.correct();
+          }
+        }
       });
 
-      resetBtn.addEventListener('click', () => {
-        ensureAudioContext();
-        resetActivity(true);
+      /**
+       * Show Answers Button Handler:
+       * Places all 8 words into their matching columns, marks all 8 correct, sets Score: 8 / 8
+       */
+      showAnswersBtn.addEventListener("click", function () {
+        setSelectedPill(null);
+
+        const allPills = Array.from(document.querySelectorAll(".word-pill"));
+        // Maintain canonical order from WORD_ITEMS
+        WORD_ITEMS.forEach(function (item) {
+          const pill = allPills.find(function (p) {
+            return p.dataset.id === item.id;
+          });
+          if (!pill) return;
+
+          const targetCol = item.correctCategory === "causes" ? dropCausesEl : dropProtectEl;
+          targetCol.appendChild(pill);
+          markPill(pill, true);
+          pill.classList.remove("snap-in");
+          void pill.offsetWidth;
+          pill.classList.add("snap-in");
+        });
+
+        scoreDisplayEl.textContent = "Score: 8 / 8";
+        statusMsgEl.textContent = "All 8 answers shown.";
+        statusMsgEl.style.color = "#1B6B42";
+        setVictoryVisuals(true);
+        SoundFX.correct();
       });
 
-      /* Initialize Application with Shuffled Word Bank */
-      resetActivity(false);
+      /**
+       * Reset Button Handler:
+       * Clears all validation states and returns all 8 words shuffled to #wordBank
+       */
+      resetBtn.addEventListener("click", function () {
+        initWordBank(true);
+      });
+
+      // Initialize application immediately on DOM load
+      initWordBank(false);
+    })();
+  </script>
+
+  <!-- Reports the real content height to the parent page so the Moodle iframe never leaves empty space -->
+  <script>
+    (function () {
+      "use strict";
+      var main = document.querySelector("main");
+      function sendHeight() {
+        var h = Math.ceil(main.getBoundingClientRect().height);
+        try { window.parent.postMessage({ type: "hearing-health-height", height: h }, "*"); } catch (e) {}
+      }
+      window.addEventListener("load", sendHeight);
+      window.addEventListener("resize", sendHeight);
+      if (window.ResizeObserver) { new ResizeObserver(sendHeight).observe(main); }
+      setTimeout(sendHeight, 300);
+      setTimeout(sendHeight, 1200);
     })();
   </script>
 </body>
