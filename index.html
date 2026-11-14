@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hearing Health Classification (Ruffle Interactive)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Enforce Verdana typography across the entire application */
+    *, *::before, *::after {
+      font-family: Verdana, Geneva, Tahoma, sans-serif;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: #EAEEF3;
+      color: #19587f;
+      min-height: 100vh;
+    }
+
+    /* Ruffle Player Window Frame */
+    .ruffle-window {
+      background-color: #FFFFFF;
+      border: 1.5px solid #D8E0E8;
+      border-radius: 14px;
+      box-shadow:
+        0 16px 38px -10px rgba(25, 88, 127, 0.12),
+        0 4px 12px -2px rgba(15, 23, 42, 0.05);
+      overflow: hidden;
+    }
+
+    /* Flash Vector Word Pill Styling */
+    .word-pill {
+      background: linear-gradient(180deg, #FFFFFF 0%, #F7FAFC 100%);
+      border: 1.5px solid #19587f;
+      border-radius: 9999px;
+      color: #19587f;
+      font-weight: 700;
+      box-shadow:
+        0 2px 5px rgba(25, 88, 127, 0.14),
+        inset 0 1px 0 #FFFFFF;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+      transition:
+        transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 0.18s ease,
+        border-color 0.18s ease,
+        background 0.18s ease;
+    }
+
+    .word-pill:hover {
+      border-color: #124260;
+      box-shadow:
+        0 4px 10px rgba(25, 88, 127, 0.2),
+        inset 0 1px 0 #FFFFFF;
+      transform: translateY(-1px);
+    }
+
+    .word-pill:active {
+      cursor: grabbing;
+    }
+
+    /* Tap-to-select active state */
+    .word-pill.is-selected {
+      border-color: #ff791f;
+      background: linear-gradient(180deg, #FFFDFB 0%, #FFF4EA 100%);
+      box-shadow:
+        0 0 0 3px rgba(255, 121, 31, 0.22),
+        0 4px 12px rgba(255, 121, 31, 0.16);
+      transform: translateY(-1px);
+    }
+
+    /* Source placeholder while dragging */
+    .word-pill.is-dragging-source {
+      opacity: 0.28;
+      border-style: dashed;
+      border-color: rgba(25, 88, 127, 0.45);
+      box-shadow: none;
+    }
+
+    /* Floating drag clone following pointer */
+    .drag-ghost {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 9999;
+      pointer-events: none;
+      background: linear-gradient(180deg, #FFFFFF 0%, #F1F6FA 100%);
+      border: 1.5px solid #19587f;
+      border-radius: 9999px;
+      color: #19587f;
+      font-weight: 700;
+      box-shadow:
+        0 14px 28px rgba(25, 88, 127, 0.24),
+        0 4px 10px rgba(0, 0, 0, 0.08),
+        inset 0 1px 0 #FFFFFF;
+      will-change: transform;
+    }
+
+    /* Spring snap-in animation on drop */
+    @keyframes springSnap {
+      0% {
+        transform: scale(0.86);
+      }
+      55% {
+        transform: scale(1.05);
+      }
+      80% {
+        transform: scale(0.985);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    .snap-in {
+      animation: springSnap 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    /* Error horizontal shake animation */
+    @keyframes pillShake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-5px); }
+      40% { transform: translateX(5px); }
+      60% { transform: translateX(-3px); }
+      80% { transform: translateX(3px); }
+    }
+
+    .shake-error {
+      animation: pillShake 0.36s ease-in-out;
+    }
+
+    /* Validation states on pills */
+    .word-pill.is-correct {
+      border-color: #16A34A;
+      background: linear-gradient(180deg, #F6FEF9 0%, #E8F9EF 100%);
+      box-shadow:
+        0 2px 6px rgba(22, 163, 74, 0.14),
+        inset 0 1px 0 #FFFFFF;
+    }
+
+    .word-pill.is-incorrect {
+      border-color: #E11D48;
+      background: linear-gradient(180deg, #FFF8F9 0%, #FDECEF 100%);
+      box-shadow:
+        0 2px 6px rgba(225, 29, 72, 0.14),
+        inset 0 1px 0 #FFFFFF;
+    }
+
+    /* Drop Zone Hover Glow */
+    .drop-zone {
+      transition:
+        background-color 0.2s ease,
+        box-shadow 0.2s ease;
+    }
+
+    .drop-zone.is-drag-over {
+      background-color: rgba(255, 121, 31, 0.045);
+      box-shadow:
+        inset 0 0 0 2px rgba(255, 121, 31, 0.38),
+        inset 0 0 22px rgba(25, 88, 127, 0.06);
+    }
+
+    .word-bank-zone.is-drag-over {
+      background-color: rgba(25, 88, 127, 0.035);
+      box-shadow: inset 0 0 0 1.5px rgba(25, 88, 127, 0.28);
+    }
+
+    /* Classic Flash Gradient Action Buttons */
+    .flash-btn-primary {
+      background: linear-gradient(180deg, #2471A0 0%, #19587f 100%);
+      border: 1.5px solid #134463;
+      color: #FFFFFF;
+      font-weight: 700;
+      border-radius: 9px;
+      box-shadow:
+        0 2px 6px rgba(25, 88, 127, 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.28);
+      transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease;
+    }
+
+    .flash-btn-primary:hover {
+      filter: brightness(1.06);
+      transform: translateY(-1px);
+      box-shadow:
+        0 4px 10px rgba(25, 88, 127, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    }
+
+    .flash-btn-primary:active {
+      transform: translateY(0);
+      filter: brightness(0.97);
+    }
+
+    .flash-btn-accent {
+      background: linear-gradient(180deg, #FF9142 0%, #ff791f 100%);
+      border: 1.5px solid #D95F0E;
+      color: #FFFFFF;
+      font-weight: 700;
+      border-radius: 9px;
+      box-shadow:
+        0 2px 6px rgba(255, 121, 31, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.32);
+      transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease;
+    }
+
+    .flash-btn-accent:hover {
+      filter: brightness(1.05);
+      transform: translateY(-1px);
+      box-shadow:
+        0 4px 10px rgba(255, 121, 31, 0.32),
+        inset 0 1px 0 rgba(255, 255, 255, 0.38);
+    }
+
+    .flash-btn-accent:active {
+      transform: translateY(0);
+      filter: brightness(0.97);
+    }
+
+    .flash-btn-secondary {
+      background: linear-gradient(180deg, #FFFFFF 0%, #F1F5F9 100%);
+      border: 1.5px solid rgba(25, 88, 127, 0.32);
+      color: #19587f;
+      font-weight: 700;
+      border-radius: 9px;
+      box-shadow:
+        0 2px 5px rgba(25, 88, 127, 0.08),
+        inset 0 1px 0 #FFFFFF;
+      transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+    }
+
+    .flash-btn-secondary:hover {
+      border-color: #19587f;
+      background: linear-gradient(180deg, #FFFFFF 0%, #E9F0F6 100%);
+      transform: translateY(-1px);
+    }
+
+    .flash-btn-secondary:active {
+      transform: translateY(0);
+    }
+
+    /* Continuous Subtle Flash Vector Animations on the Ear Diagram */
+    @keyframes soundWaveFlow1 {
+      0%   { opacity: 0; transform: translateX(-14px) scale(0.94); }
+      25%  { opacity: 0.55; }
+      75%  { opacity: 0.35; }
+      100% { opacity: 0; transform: translateX(22px) scale(1.04); }
+    }
+
+    @keyframes soundWaveFlow2 {
+      0%   { opacity: 0; transform: translateX(-12px) scale(0.92); }
+      30%  { opacity: 0.48; }
+      80%  { opacity: 0.25; }
+      100% { opacity: 0; transform: translateX(20px) scale(1.03); }
+    }
+
+    @keyframes eardrumMicroVibrate {
+      0%, 100% { transform: translate(0px, 0px) rotate(0deg); }
+      25%      { transform: translate(0.75px, -0.25px) rotate(0.45deg); }
+      50%      { transform: translate(-0.4px, 0.2px) rotate(-0.25deg); }
+      75%      { transform: translate(0.65px, -0.15px) rotate(0.35deg); }
+    }
+
+    @keyframes ossiclesMicroVibrate {
+      0%, 100% { transform: translate(0px, 0px) rotate(0deg); }
+      30%      { transform: translate(0.85px, -0.35px) rotate(-0.6deg); }
+      60%      { transform: translate(-0.35px, 0.25px) rotate(0.35deg); }
+      85%      { transform: translate(0.55px, -0.2px) rotate(-0.4deg); }
+    }
+
+    @keyframes cochleaShimmerPulse {
+      0%, 100% { opacity: 0.18; transform: scale(0.99); }
+      50%      { opacity: 0.62; transform: scale(1.015); }
+    }
+
+    @keyframes cochleaHarmonicHalo {
+      0%, 100% { opacity: 0.65; transform: scale(0.97); }
+      50%      { opacity: 1; transform: scale(1.05); }
+    }
+
+    @keyframes sparklePop {
+      0%   { opacity: 0; transform: scale(0.2) rotate(0deg); }
+      35%  { opacity: 1; transform: scale(1.15) rotate(35deg); }
+      70%  { opacity: 0.85; transform: scale(0.95) rotate(65deg); }
+      100% { opacity: 0; transform: scale(0.3) rotate(90deg); }
+    }
+
+    .anim-wave-1 {
+      transform-origin: 185px 168px;
+      animation: soundWaveFlow1 2.8s ease-in-out infinite;
+    }
+
+    .anim-wave-2 {
+      transform-origin: 245px 166px;
+      animation: soundWaveFlow2 2.8s ease-in-out 0.9s infinite;
+    }
+
+    .anim-wave-3 {
+      transform-origin: 305px 164px;
+      animation: soundWaveFlow2 2.8s ease-in-out 1.8s infinite;
+    }
+
+    .anim-eardrum {
+      transform-origin: 368px 166px;
+      animation: eardrumMicroVibrate 1.4s ease-in-out infinite;
+    }
+
+    .anim-ossicles {
+      transform-origin: 392px 136px;
+      animation: ossiclesMicroVibrate 1.4s ease-in-out 0.08s infinite;
+    }
+
+    .anim-cochlea-shimmer {
+      transform-origin: 582px 162px;
+      animation: cochleaShimmerPulse 3.2s ease-in-out infinite;
+    }
+
+    .cochlea-victory-active .victory-halo {
+      opacity: 1;
+      animation: cochleaHarmonicHalo 2.2s ease-in-out infinite;
+    }
+
+    .cochlea-victory-active .cochlea-core {
+      filter: drop-shadow(0 0 10px rgba(248, 206, 120, 0.95)) drop-shadow(0 0 18px rgba(255, 121, 31, 0.55));
+    }
+
+    .sparkle-burst .sparkle-star {
+      animation: sparklePop 1.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center p-2.5 sm:p-5">
+
+  <!-- Unified Pure-White Interactive Stage Window -->
+  <main class="ruffle-window w-full max-w-4xl mx-auto flex flex-col">
+
+    <!-- Unified Pure-White (#FFFFFF) Flash Vector Stage -->
+    <div id="flashStage" class="bg-[#FFFFFF] flex flex-col w-full">
+
+      <!-- 1. Top Anatomical Vector Illustration (Clean Graphic Only - No Labels or Leader Lines) -->
+      <section class="w-full bg-[#FFFFFF] pt-3 pb-2 px-4 sm:px-8 select-none">
+        <svg
+          id="earAnatomySvg"
+          viewBox="102 36 708 246"
+          class="w-full h-auto max-h-[245px] sm:max-h-[265px] block mx-auto overflow-visible"
+          role="img"
+          aria-label="Anatomical cross-section of the human ear"
+        >
+          <defs>
+            <!-- Soft Feathered Cutout Mask with Gaussian Blur so edges melt cleanly into #FFFFFF -->
+            <filter id="featherMaskBlur" x="-15%" y="-15%" width="130%" height="130%">
+              <feGaussianBlur stdDeviation="7" />
+            </filter>
+
+            <radialGradient id="cutoutFeatherGrad" cx="50%" cy="51%" r="49%" fx="50%" fy="51%">
+              <stop offset="0%" stop-color="#FFFFFF" stop-opacity="1" />
+              <stop offset="78%" stop-color="#FFFFFF" stop-opacity="1" />
+              <stop offset="93%" stop-color="#FFFFFF" stop-opacity="0.6" />
+              <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+            </radialGradient>
+
+            <mask id="anatomicalFeatherMask">
+              <ellipse cx="458" cy="158" rx="350" ry="122" fill="url(#cutoutFeatherGrad)" filter="url(#featherMaskBlur)" />
+            </mask>
+
+            <!-- Soft Gaussian Blur Filter for organic shadows & harmonic glows -->
+            <filter id="softGlowFilter" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="5" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+
+            <filter id="harmonicAuraBlur" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="11" />
+            </filter>
+
+            <!-- Warm Peach/Terracotta Auricle Gradients (#F7D5C2 to #C97B5B) -->
+            <linearGradient id="auricleMainGrad" x1="15%" y1="10%" x2="88%" y2="88%">
+              <stop offset="0%" stop-color="#FBE3D4" />
+              <stop offset="32%" stop-color="#F7D5C2" />
+              <stop offset="68%" stop-color="#E19C7E" />
+              <stop offset="100%" stop-color="#C97B5B" />
+            </linearGradient>
+
+            <linearGradient id="auricleHelixHighlight" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#FFF0E6" />
+              <stop offset="45%" stop-color="#F7D5C2" />
+              <stop offset="100%" stop-color="#D98F70" />
+            </linearGradient>
+
+            <radialGradient id="conchaBowlGrad" cx="58%" cy="52%" r="55%">
+              <stop offset="0%" stop-color="#9E4F3D" />
+              <stop offset="55%" stop-color="#C97B5B" />
+              <stop offset="100%" stop-color="#E5A589" />
+            </radialGradient>
+
+            <linearGradient id="earlobeGrad" x1="25%" y1="0%" x2="75%" y2="100%">
+              <stop offset="0%" stop-color="#F2C2AA" />
+              <stop offset="55%" stop-color="#F7D5C2" />
+              <stop offset="85%" stop-color="#DF9A7C" />
+              <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+            </linearGradient>
+
+            <!-- Surrounding Soft Tissue Fade into White -->
+            <linearGradient id="surroundingSkinGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0" />
+              <stop offset="18%" stop-color="#F8DFD0" stop-opacity="0.85" />
+              <stop offset="50%" stop-color="#F2C8B2" stop-opacity="0.95" />
+              <stop offset="82%" stop-color="#F8DFD0" stop-opacity="0.85" />
+              <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+            </linearGradient>
+
+            <!-- External Auditory Canal Gradients (#C97859 to #7A3B2E) -->
+            <linearGradient id="earCanalLengthGrad" x1="0%" y1="45%" x2="100%" y2="55%">
+              <stop offset="0%" stop-color="#C97859" />
+              <stop offset="45%" stop-color="#A85742" />
+              <stop offset="82%" stop-color="#874233" />
+              <stop offset="100%" stop-color="#7A3B2E" />
+            </linearGradient>
+
+            <linearGradient id="earCanalWallShade" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#5E291F" stop-opacity="0.55" />
+              <stop offset="32%" stop-color="#D98B6C" stop-opacity="0.18" />
+              <stop offset="68%" stop-color="#C97859" stop-opacity="0.08" />
+              <stop offset="100%" stop-color="#58251B" stop-opacity="0.62" />
+            </linearGradient>
+
+            <!-- Pale Yellow Temporal Bone Matrix (#EFE47A) -->
+            <linearGradient id="temporalBoneGrad" x1="15%" y1="10%" x2="85%" y2="90%">
+              <stop offset="0%" stop-color="#F8F2AE" />
+              <stop offset="42%" stop-color="#EFE47A" />
+              <stop offset="78%" stop-color="#E4D464" />
+              <stop offset="100%" stop-color="#D7C452" />
+            </linearGradient>
+
+            <!-- Organic Burgundy-Magenta Marrow Pockets (#A7345B) -->
+            <radialGradient id="marrowPocketGrad" cx="42%" cy="40%" r="60%">
+              <stop offset="0%" stop-color="#C64B74" />
+              <stop offset="62%" stop-color="#A7345B" />
+              <stop offset="100%" stop-color="#7D2040" />
+            </radialGradient>
+
+            <!-- Dark Middle-Ear Tympanic Cavity (#4A3531) -->
+            <radialGradient id="middleEarCavityGrad" cx="48%" cy="48%" r="56%">
+              <stop offset="0%" stop-color="#634843" />
+              <stop offset="58%" stop-color="#4A3531" />
+              <stop offset="100%" stop-color="#2E1F1C" />
+            </radialGradient>
+
+            <!-- Deep Indigo Contour (#3B498B) -->
+            <linearGradient id="indigoContourGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#4B5CA6" />
+              <stop offset="50%" stop-color="#3B498B" />
+              <stop offset="100%" stop-color="#273266" />
+            </linearGradient>
+
+            <!-- Coral-Red Eustachian Tube / Tensor Tympani (#D95B59) -->
+            <linearGradient id="coralEustachianGrad" x1="15%" y1="0%" x2="85%" y2="100%">
+              <stop offset="0%" stop-color="#EC817F" />
+              <stop offset="48%" stop-color="#D95B59" />
+              <stop offset="86%" stop-color="#B33E3C" />
+              <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+            </linearGradient>
+
+            <!-- Pearly Silver-Blue Eardrum & Ossicles (#DCE5F0 / #8A9EB5) -->
+            <radialGradient id="eardrumPearlGrad" cx="42%" cy="44%" r="58%">
+              <stop offset="0%" stop-color="#F7FAFE" />
+              <stop offset="48%" stop-color="#DCE5F0" />
+              <stop offset="82%" stop-color="#A3B5CA" />
+              <stop offset="100%" stop-color="#8A9EB5" />
+            </radialGradient>
+
+            <linearGradient id="ossicleSilverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#FFFFFF" />
+              <stop offset="45%" stop-color="#DCE5F0" />
+              <stop offset="100%" stop-color="#8A9EB5" />
+            </linearGradient>
+
+            <!-- Golden-Amber Semicircular Canals & Spiral Cochlea (#F8CE78 / #E5A243 / #B87324) -->
+            <linearGradient id="amberCanalGrad" x1="15%" y1="5%" x2="85%" y2="95%">
+              <stop offset="0%" stop-color="#FBE1A0" />
+              <stop offset="35%" stop-color="#F8CE78" />
+              <stop offset="72%" stop-color="#E5A243" />
+              <stop offset="100%" stop-color="#B87324" />
+            </linearGradient>
+
+            <radialGradient id="cochleaSpiralGrad" cx="38%" cy="34%" r="64%">
+              <stop offset="0%" stop-color="#FDE8B0" />
+              <stop offset="34%" stop-color="#F8CE78" />
+              <stop offset="70%" stop-color="#E5A243" />
+              <stop offset="100%" stop-color="#B87324" />
+            </radialGradient>
+
+            <linearGradient id="vestibularNerveGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+              <stop offset="0%" stop-color="#E5A243" />
+              <stop offset="45%" stop-color="#F8CE78" />
+              <stop offset="82%" stop-color="#FBE5B2" stop-opacity="0.7" />
+              <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+            </linearGradient>
+
+            <!-- Golden Harmonic Victory Glow -->
+            <radialGradient id="cochleaVictoryRadial" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#FFE699" stop-opacity="0.95" />
+              <stop offset="45%" stop-color="#F8CE78" stop-opacity="0.65" />
+              <stop offset="75%" stop-color="#ff791f" stop-opacity="0.28" />
+              <stop offset="100%" stop-color="#ff791f" stop-opacity="0" />
+            </radialGradient>
+          </defs>
+
+          <!-- Main Feathered Anatomical Cutaway Group -->
+          <g mask="url(#anatomicalFeatherMask)">
+
+            <!-- Soft Subcutaneous Tissue Cushion behind Canal & Temporal Bone -->
+            <path d="M185,48 C235,44 295,46 355,52 L355,264 C295,268 235,266 185,256 Z" fill="url(#surroundingSkinGrad)" />
+
+            <!-- Pale Yellow Temporal Bone Cutaway Block (#EFE47A) -->
+            <path
+              d="M275,52
+                 C345,42 465,40 585,48
+                 C675,54 745,74 778,108
+                 C802,135 802,186 774,218
+                 C735,258 645,272 535,274
+                 C435,275 335,268 272,254
+                 C256,222 258,195 276,184
+                 L364,182 L364,146 L276,146
+                 C258,132 258,82 275,52 Z"
+              fill="url(#temporalBoneGrad)"
+            />
+
+            <!-- Subtle Warm Bone Contour Shading -->
+            <path
+              d="M342,68 C435,58 555,60 652,78 C712,90 738,125 734,168 C730,210 688,242 612,252 C515,264 405,258 338,240"
+              fill="none"
+              stroke="#D5C250"
+              stroke-width="14"
+              stroke-opacity="0.28"
+              stroke-linecap="round"
+            />
+
+            <!-- Organic Burgundy-Magenta Marrow Pockets (#A7345B) in Temporal Bone -->
+            <g fill="url(#marrowPocketGrad)" opacity="0.92">
+              <!-- Superior Squamous/Petrous Pockets -->
+              <path d="M312,68 C322,61 339,63 343,72 C346,80 335,88 322,86 C311,84 305,75 312,68 Z" />
+              <path d="M358,62 C372,56 392,59 396,69 C399,78 386,86 371,84 C357,82 349,68 358,62 Z" />
+              <path d="M412,60 C425,55 442,60 444,69 C446,78 432,83 419,80 C409,77 404,65 412,60 Z" />
+              <path d="M460,64 C472,58 488,62 490,71 C492,79 478,84 466,81 C456,78 452,69 460,64 Z" />
+              <path d="M506,66 C521,60 541,65 544,75 C546,84 531,91 516,88 C503,85 496,72 506,66 Z" />
+              <path d="M562,72 C576,66 594,71 597,81 C599,90 584,96 570,92 C558,88 552,77 562,72 Z" />
+              <path d="M614,82 C628,77 645,83 647,93 C649,102 634,107 621,102 C610,98 604,87 614,82 Z" />
+              <path d="M332,96 C344,91 358,95 360,104 C362,112 349,117 338,113 C328,109 324,100 332,96 Z" />
+              <path d="M378,94 C390,90 403,94 404,102 C405,109 393,113 383,109 C374,106 370,98 378,94 Z" />
+
+              <!-- Inferior Petrous/Mastoid Pockets -->
+              <path d="M306,214 C319,207 336,211 339,221 C342,230 328,238 315,235 C303,232 297,220 306,214 Z" />
+              <path d="M352,216 C365,210 381,215 383,225 C385,234 371,241 359,237 C348,233 343,221 352,216 Z" />
+              <path d="M326,245 C339,240 355,244 357,252 C359,260 345,264 333,261 C322,258 317,249 326,245 Z" />
+              <path d="M492,218 C506,212 524,217 526,227 C528,236 513,243 499,239 C487,235 482,223 492,218 Z" />
+              <path d="M542,222 C558,216 578,221 581,231 C583,240 567,248 551,244 C537,240 531,227 542,222 Z" />
+              <path d="M598,216 C613,210 631,215 634,225 C636,234 620,241 606,237 C594,233 588,221 598,216 Z" />
+              <path d="M652,204 C665,198 681,203 683,212 C685,221 671,227 658,223 C647,219 642,209 652,204 Z" />
+            </g>
+
+            <!-- Deep Indigo Contour (#3B498B) Framing Inner-Ear Capsule & Medial Tympanic Border -->
+            <path
+              d="M428,95
+                 C446,74 486,68 518,86
+                 C544,98 575,98 608,108
+                 C642,118 666,142 664,172
+                 C662,202 634,222 595,220
+                 C558,218 528,202 496,204
+                 C468,206 446,196 432,182 Z"
+              fill="url(#indigoContourGrad)"
+              opacity="0.92"
+            />
+
+            <!-- Dark Middle-Ear Cavity (#4A3531) -->
+            <path
+              d="M362,138
+                 C366,112 384,98 408,100
+                 C430,102 446,118 448,142
+                 C450,166 446,188 432,198
+                 C418,206 394,204 378,194
+                 C365,186 360,164 362,138 Z"
+              fill="url(#middleEarCavityGrad)"
+            />
+
+            <!-- Coral-Red Eustachian Tube / Muscle Structure (#D95B59) -->
+            <path
+              d="M386,192
+                 C398,194 414,196 426,204
+                 C444,218 462,244 476,268
+                 L452,276
+                 C436,252 418,226 396,210
+                 C388,204 382,198 386,192 Z"
+              fill="url(#coralEustachianGrad)"
+            />
+            <!-- Subtle Lumen Highlight on Eustachian Structure -->
+            <path
+              d="M398,198 C418,212 438,236 458,266"
+              fill="none"
+              stroke="#F4A19F"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-opacity="0.55"
+            />
+
+            <!-- External Auditory Canal (#C97859 to #7A3B2E) -->
+            <path
+              d="M196,151
+                 C235,149 275,144 315,144
+                 C338,144 356,146 371,148
+                 L364,185
+                 C346,182 325,179 302,180
+                 C265,181 232,186 198,185 Z"
+              fill="url(#earCanalLengthGrad)"
+            />
+            <!-- Cylindrical Depth Shading Inside Canal -->
+            <path
+              d="M196,151
+                 C235,149 275,144 315,144
+                 C338,144 356,146 371,148
+                 L364,185
+                 C346,182 325,179 302,180
+                 C265,181 232,186 198,185 Z"
+              fill="url(#earCanalWallShade)"
+            />
+
+            <!-- Pearly Silver-Blue Eardrum (Tympanic Membrane) with Micro-Vibration -->
+            <g class="anim-eardrum">
+              <ellipse
+                cx="368"
+                cy="166"
+                rx="7.5"
+                ry="19.5"
+                transform="rotate(14 368 166)"
+                fill="url(#eardrumPearlGrad)"
+              />
+              <!-- Delicate Specular Cone of Light on Eardrum -->
+              <ellipse
+                cx="366"
+                cy="169"
+                rx="2.6"
+                ry="8.5"
+                transform="rotate(14 366 169)"
+                fill="#FFFFFF"
+                opacity="0.72"
+              />
+            </g>
+
+            <!-- Articulated Auditory Ossicles (Malleus, Incus, Stapes) in Pearly Silver-Blue -->
+            <g class="anim-ossicles">
+              <!-- Malleus (Handle attached to eardrum + Head in epitympanic recess) -->
+              <path
+                d="M368,167
+                   C371,156 375,144 378,133
+                   C376,126 379,117 386,116
+                   C392,115 396,121 394,128
+                   C392,133 386,136 383,142
+                   C379,151 375,161 371,169 Z"
+                fill="url(#ossicleSilverGrad)"
+              />
+              <!-- Incus (Body + Short Crus + Long Crus descending to Stapes) -->
+              <path
+                d="M392,119
+                   C399,116 409,119 415,123
+                   C418,125 416,129 411,129
+                   C406,129 405,134 407,142
+                   C409,149 411,154 414,156
+                   C412,159 408,159 406,155
+                   C402,148 399,139 396,131
+                   C392,128 389,123 392,119 Z"
+                fill="url(#ossicleSilverGrad)"
+              />
+              <!-- Stapes (Stirrup crura & oval footplate meeting the Vestibule) -->
+              <path
+                d="M412,155
+                   C419,150 427,147 435,146
+                   L437,160
+                   C428,160 420,159 412,157 Z
+                   M419,154
+                   C424,152 429,151 433,151
+                   L433,156
+                   C429,156 424,156 419,154 Z"
+                fill="url(#ossicleSilverGrad)"
+              />
+            </g>
+
+            <!-- Inner Ear: Vestibulocochlear Nerve Exiting Right -->
+            <path
+              d="M602,136 C652,134 702,136 756,142 L756,182 C702,186 652,186 602,182 Z"
+              fill="url(#vestibularNerveGrad)"
+            />
+            <!-- Delicate Cochlear & Vestibular Nerve Fiber Striations -->
+            <g fill="none" stroke="#C68328" stroke-width="1.25" stroke-linecap="round" stroke-opacity="0.45">
+              <path d="M614,146 C658,145 702,147 746,151" />
+              <path d="M618,156 C660,156 704,157 748,160" />
+              <path d="M616,166 C658,167 702,168 746,170" />
+              <path d="M610,175 C654,177 698,178 742,179" />
+            </g>
+
+            <!-- Inner Ear: Semicircular Canals & Vestibule (#F8CE78 / #E5A243 / #B87324) -->
+            <g>
+              <!-- Posterior Semicircular Canal -->
+              <path
+                d="M476,122
+                   C482,94 514,94 520,124
+                   C525,148 508,168 486,164"
+                fill="none"
+                stroke="#B87324"
+                stroke-width="11"
+                stroke-linecap="round"
+              />
+              <path
+                d="M476,122
+                   C482,94 514,94 520,124
+                   C525,148 508,168 486,164"
+                fill="none"
+                stroke="url(#amberCanalGrad)"
+                stroke-width="8.5"
+                stroke-linecap="round"
+              />
+
+              <!-- Superior (Anterior) Semicircular Canal -->
+              <path
+                d="M446,136
+                   C438,94 468,76 488,104
+                   C498,118 494,136 484,146"
+                fill="none"
+                stroke="#B87324"
+                stroke-width="11.5"
+                stroke-linecap="round"
+              />
+              <path
+                d="M446,136
+                   C438,94 468,76 488,104
+                   C498,118 494,136 484,146"
+                fill="none"
+                stroke="url(#amberCanalGrad)"
+                stroke-width="9"
+                stroke-linecap="round"
+              />
+
+              <!-- Lateral (Horizontal) Semicircular Canal -->
+              <path
+                d="M454,142
+                   C474,124 512,126 514,142
+                   C516,156 484,160 462,154"
+                fill="none"
+                stroke="#B87324"
+                stroke-width="10.5"
+                stroke-linecap="round"
+              />
+              <path
+                d="M454,142
+                   C474,124 512,126 514,142
+                   C516,156 484,160 462,154"
+                fill="none"
+                stroke="url(#amberCanalGrad)"
+                stroke-width="8"
+                stroke-linecap="round"
+              />
+
+              <!-- Central Vestibule Chamber -->
+              <path
+                d="M436,142
+                   C438,128 456,124 476,130
+                   C496,136 512,148 518,162
+                   C512,178 488,186 462,182
+                   C442,178 434,162 436,142 Z"
+                fill="url(#amberCanalGrad)"
+              />
+              <!-- Oval Window & Round Window Subtle Anatomical Details -->
+              <ellipse cx="441" cy="153" rx="3.5" ry="6.5" fill="#FFF3CC" opacity="0.8" />
+              <circle cx="458" cy="172" r="4.2" fill="#9E5E18" opacity="0.7" />
+            </g>
+
+            <!-- Inner Ear: Spiral Cochlea (#F8CE78 / #E5A243 / #B87324) -->
+            <g id="cochleaGroup">
+              <!-- Golden Harmonic Victory Halo (Activated on 8/8) -->
+              <circle
+                cx="578"
+                cy="162"
+                r="68"
+                fill="url(#cochleaVictoryRadial)"
+                filter="url(#harmonicAuraBlur)"
+                class="victory-halo opacity-0 transition-opacity duration-500"
+              />
+
+              <!-- Cochlea Outer Shell & 2.5-Turn Spiral -->
+              <g class="cochlea-core transition-all duration-500">
+                <!-- Base Basal Turn Connecting from Vestibule -->
+                <path
+                  d="M506,162
+                     C514,192 544,212 580,210
+                     C616,208 638,182 634,150
+                     C630,118 600,102 568,108
+                     C536,114 520,140 526,168
+                     C532,192 558,202 584,196
+                     C608,190 618,168 612,148
+                     C606,130 584,122 566,128
+                     C548,134 542,152 548,168
+                     C554,180 572,184 584,176
+                     C594,168 594,154 584,148
+                     C576,144 568,148 568,156"
+                  fill="url(#cochleaSpiralGrad)"
+                />
+
+                <!-- Deep Golden-Bronze Helical Spiral Groove for 3D Snail-Shell Depth -->
+                <path
+                  d="M524,164
+                     C528,190 554,206 582,203
+                     C612,200 630,176 626,148
+                     C622,122 596,108 570,114
+                     C544,120 532,144 538,168
+                     C544,188 566,196 586,190
+                     C604,184 612,166 606,148
+                     C600,134 582,128 568,134
+                     C554,140 550,154 556,166
+                     C562,176 576,178 584,170
+                     C590,164 588,154 580,151"
+                  fill="none"
+                  stroke="#9C5D18"
+                  stroke-width="3.2"
+                  stroke-linecap="round"
+                  stroke-opacity="0.72"
+                />
+
+                <!-- Specular Top Highlight Ridge along the Spiral Whorls -->
+                <path
+                  d="M542,126 C566,110 604,114 620,138 M554,142 C572,130 596,134 604,150"
+                  fill="none"
+                  stroke="#FFF3C4"
+                  stroke-width="2.4"
+                  stroke-linecap="round"
+                  stroke-opacity="0.75"
+                />
+
+                <!-- Continuous Subtle Golden Shimmer Along Cochlea Spiral -->
+                <circle
+                  cx="578"
+                  cy="160"
+                  r="34"
+                  fill="none"
+                  stroke="#FFF5CC"
+                  stroke-width="3"
+                  stroke-dasharray="18 24"
+                  class="anim-cochlea-shimmer"
+                />
+              </g>
+            </g>
+
+            <!-- Outer Ear: Auricle (Pinna) & Earlobe (#F7D5C2 to #C97B5B) -->
+            <g>
+              <!-- Earlobe (Inferior Lobule) -->
+              <path
+                d="M148,206
+                   C142,232 152,262 176,264
+                   C198,266 210,244 206,214
+                   C202,196 184,192 148,206 Z"
+                fill="url(#earlobeGrad)"
+              />
+
+              <!-- Main Auricle Silhouette -->
+              <path
+                d="M196,146
+                   C192,112 184,74 156,64
+                   C126,54 114,88 122,132
+                   C128,164 138,194 148,214
+                   C162,232 188,230 198,208
+                   C204,194 202,172 196,146 Z"
+                fill="url(#auricleMainGrad)"
+              />
+
+              <!-- Outer Helix Rim Smooth Fold -->
+              <path
+                d="M188,118
+                   C186,84 172,62 148,64
+                   C124,66 118,96 125,134
+                   C131,164 142,190 152,208"
+                fill="none"
+                stroke="url(#auricleHelixHighlight)"
+                stroke-width="11"
+                stroke-linecap="round"
+              />
+
+              <!-- Scaphoid Fossa Soft Shadow Groove -->
+              <path
+                d="M174,114
+                   C172,88 160,74 144,77
+                   C130,80 128,104 134,134
+                   C139,158 148,180 156,194"
+                fill="none"
+                stroke="#C97B5B"
+                stroke-width="5.5"
+                stroke-linecap="round"
+                stroke-opacity="0.55"
+              />
+
+              <!-- Antihelix Smooth Sculpted Ridge -->
+              <path
+                d="M164,104
+                   C152,102 144,118 148,144
+                   C152,168 164,186 178,192"
+                fill="none"
+                stroke="#F9DEC9"
+                stroke-width="7.5"
+                stroke-linecap="round"
+                stroke-opacity="0.88"
+              />
+
+              <!-- Deep Concha Bowl Funneling into External Auditory Canal -->
+              <path
+                d="M164,132
+                   C158,148 162,174 176,184
+                   C188,190 202,186 206,170
+                   C208,154 198,136 184,130
+                   C176,126 168,128 164,132 Z"
+                fill="url(#conchaBowlGrad)"
+              />
+
+              <!-- Tragus Cartilage Flap Anterior to Canal Opening -->
+              <path
+                d="M196,144
+                   C206,148 210,162 204,174
+                   C199,180 192,176 192,166
+                   C192,156 192,148 196,144 Z"
+                fill="#F4C7B0"
+              />
+            </g>
+
+            <!-- Subtle Translucent Sound Waves Entering the Auditory Canal -->
+            <g fill="none" stroke="#19587f" stroke-linecap="round">
+              <path
+                d="M176,154 C183,161 183,173 176,180"
+                stroke-width="2"
+                class="anim-wave-1"
+              />
+              <path
+                d="M236,153 C242,160 242,171 236,178"
+                stroke-width="1.8"
+                class="anim-wave-2"
+              />
+              <path
+                d="M298,152 C304,159 304,169 298,176"
+                stroke-width="1.6"
+                class="anim-wave-3"
+              />
+            </g>
+          </g>
+
+          <!-- Golden-Orange Sparkle Burst Around Cochlea (Triggered at 8/8 Score) -->
+          <g id="sparkleBurstGroup" class="pointer-events-none opacity-0" aria-hidden="true">
+            <path class="sparkle-star" style="transform-origin: 540px 104px; animation-delay: 0s;" d="M540 96 L542 102 L548 104 L542 106 L540 112 L538 106 L532 104 L538 102 Z" fill="#ff791f" />
+            <path class="sparkle-star" style="transform-origin: 626px 108px; animation-delay: 0.12s;" d="M626 99 L628.5 105.5 L635 108 L628.5 110.5 L626 117 L623.5 110.5 L617 108 L623.5 105.5 Z" fill="#F8CE78" />
+            <path class="sparkle-star" style="transform-origin: 644px 168px; animation-delay: 0.22s;" d="M644 160 L646 166 L652 168 L646 170 L644 176 L642 170 L636 168 L642 166 Z" fill="#ff791f" />
+            <path class="sparkle-star" style="transform-origin: 614px 214px; animation-delay: 0.3s;" d="M614 206 L616 212 L622 214 L616 216 L614 222 L612 216 L606 214 L612 212 Z" fill="#E5A243" />
+            <path class="sparkle-star" style="transform-origin: 534px 210px; animation-delay: 0.18s;" d="M534 202 L536 208 L542 210 L536 212 L534 218 L532 212 L526 210 L532 208 Z" fill="#F8CE78" />
+            <circle class="sparkle-star" style="transform-origin: 582px 94px; animation-delay: 0.25s;" cx="582" cy="94" r="2.8" fill="#ff791f" />
+            <circle class="sparkle-star" style="transform-origin: 642px 136px; animation-delay: 0.08s;" cx="642" cy="136" r="2.5" fill="#F8CE78" />
+          </g>
+        </svg>
+      </section>
+
+      <!-- Delicate 1px Hairline Divider -->
+      <div class="w-full h-[1px] bg-[#E1E4E8]"></div>
+
+      <!-- 2. Integrated Word Bank Strip -->
+      <section
+        id="wordBankZone"
+        data-zone="bank"
+        aria-label="Word bank"
+        class="word-bank-zone w-full bg-[#FFFFFF] px-4 sm:px-6 py-3.5 min-h-[64px] flex flex-wrap items-center justify-center gap-2.5"
+      ></section>
+
+      <!-- Delicate 1px Hairline Divider -->
+      <div class="w-full h-[1px] bg-[#D8DDE3]"></div>
+
+      <!-- 3. Unified Two-Column Classification Table -->
+      <section class="w-full grid grid-cols-1 md:grid-cols-2 bg-[#FFFFFF]">
+
+        <!-- Column 1: Possible causes or symptoms of hearing loss -->
+        <div class="flex flex-col border-b md:border-b-0 md:border-r border-[#D8DDE3]">
+          <div class="bg-[#FFF8F2] border-b border-[#D8DDE3] px-4 py-3 flex items-center justify-center text-center min-h-[54px]">
+            <h2 class="text-[13px] sm:text-[14px] font-bold text-[#ff791f] leading-snug">
+              Possible causes or symptoms of hearing loss
+            </h2>
+          </div>
+          <div
+            id="colCausesZone"
+            data-zone="causes"
+            aria-label="Possible causes or symptoms of hearing loss"
+            class="drop-zone flex-1 min-h-[138px] sm:min-h-[158px] p-3.5 sm:p-4 flex flex-wrap items-start content-start justify-center gap-2.5 bg-[#FFFFFF]"
+          ></div>
+        </div>
+
+        <!-- Column 2: Ways to protect your hearing -->
+        <div class="flex flex-col">
+          <div class="bg-[#FFF8F2] border-b border-[#D8DDE3] px-4 py-3 flex items-center justify-center text-center min-h-[54px]">
+            <h2 class="text-[13px] sm:text-[14px] font-bold text-[#ff791f] leading-snug">
+              Ways to protect your hearing
+            </h2>
+          </div>
+          <div
+            id="colProtectZone"
+            data-zone="protect"
+            aria-label="Ways to protect your hearing"
+            class="drop-zone flex-1 min-h-[138px] sm:min-h-[158px] p-3.5 sm:p-4 flex flex-wrap items-start content-start justify-center gap-2.5 bg-[#FFFFFF]"
+          ></div>
+        </div>
+
+      </section>
+
+      <!-- Delicate 1px Hairline Divider -->
+      <div class="w-full h-[1px] bg-[#E1E4E8]"></div>
+
+      <!-- 4. Bottom Score & Action Controls Bar -->
+      <footer class="w-full bg-[#FAFCFE] px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+        <!-- Score Counter -->
+        <div class="flex items-center">
+          <span id="scoreDisplay" class="text-[13px] sm:text-[14px] font-bold text-[#19587f]">
+            Score: 0 / 8
+          </span>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
+          <button
+            id="checkBtn"
+            type="button"
+            class="flash-btn-primary px-4 py-2 text-[12px] sm:text-[13px] cursor-pointer"
+          >
+            Check
+          </button>
+          <button
+            id="showAnswersBtn"
+            type="button"
+            class="flash-btn-accent px-4 py-2 text-[12px] sm:text-[13px] cursor-pointer"
+          >
+            Show Answers
+          </button>
+          <button
+            id="resetBtn"
+            type="button"
+            class="flash-btn-secondary px-4 py-2 text-[12px] sm:text-[13px] cursor-pointer"
+          >
+            Reset
+          </button>
+        </div>
+      </footer>
+
+    </div>
+  </main>
+
+  <script>
+    /**
+     * Hearing Health Classification (Ruffle Interactive)
+     * Self-contained interactive drag-and-drop & tap-to-place educational simulation
+     * with synthesized Web Audio API sound effects.
+     */
+    (function () {
+      'use strict';
+
+      /* ----------------------------------------------------------------------
+       * 1. Canonical Data & Category Mapping
+       * ---------------------------------------------------------------------- */
+      const ITEMS = [
+        { id: 'headphones', label: 'Headphones', category: 'causes' },
+        { id: 'concerts', label: 'Concerts', category: 'causes' },
+        { id: 'ear-damage', label: 'Ear damage', category: 'causes' },
+        { id: 'volume', label: 'Volume', category: 'causes' },
+        { id: 'earplugs', label: 'Earplugs', category: 'protect' },
+        { id: 'noise', label: 'Noise', category: 'causes' },
+        { id: 'ringing', label: 'Ringing', category: 'causes' },
+        { id: 'hearing-protection', label: 'Hearing protection', category: 'protect' }
+      ];
+
+      /* Application State */
+      const state = {
+        sfxEnabled: true,
+        selectedId: null,       // Currently tap-selected pill ID
+        placements: {           // Maps itemId -> 'bank' | 'causes' | 'protect'
+          'headphones': 'bank',
+          'concerts': 'bank',
+          'ear-damage': 'bank',
+          'volume': 'bank',
+          'earplugs': 'bank',
+          'noise': 'bank',
+          'ringing': 'bank',
+          'hearing-protection': 'bank'
+        },
+        bankOrder: [],          // Randomized array of item IDs in the bank
+        validation: {},         // Maps itemId -> true (correct) | false (incorrect) | undefined
+        score: 0
+      };
+
+      /* DOM References */
+      const wordBankZone = document.getElementById('wordBankZone');
+      const colCausesZone = document.getElementById('colCausesZone');
+      const colProtectZone = document.getElementById('colProtectZone');
+      const scoreDisplay = document.getElementById('scoreDisplay');
+      const checkBtn = document.getElementById('checkBtn');
+      const showAnswersBtn = document.getElementById('showAnswersBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const cochleaGroup = document.getElementById('cochleaGroup');
+      const sparkleBurstGroup = document.getElementById('sparkleBurstGroup');
+/* ... existing code ... -->
+      /* ----------------------------------------------------------------------
+       * 7. Control Buttons Wiring
+       * ---------------------------------------------------------------------- */
+      checkBtn.addEventListener('click', () => {
+        ensureAudioContext();
+        checkAnswers();
+      });
+
+      showAnswersBtn.addEventListener('click', () => {
+        ensureAudioContext();
+        showAnswers();
+      });
+
+      resetBtn.addEventListener('click', () => {
+        ensureAudioContext();
+        resetActivity(true);
+      });
+
+      /* Initialize Application with Shuffled Word Bank */
+      resetActivity(false);
+    })();
+  </script>
+</body>
+</html>
